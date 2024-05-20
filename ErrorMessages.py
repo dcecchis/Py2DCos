@@ -3,10 +3,13 @@ import re
 
 def ValidateMethod(method):
     if method == "FFT":
-        msg = QMessageBox()
-        msg.setText("Ups, FFT not yet developed")
-        x = msg.exec_()
-        return False
+        return True
+
+        # msg = QMessageBox()
+        # msg.setText("Ups, FFT not yet developed")
+        # x = msg.exec_()
+        # return False
+
 
     if method == "HT":
         return True
