@@ -1,6 +1,6 @@
 import logging
 from py2dcos.core.validators import validate_method, validate_extension
-from py2dcos.core.twoDspeciesNEW import twoDspecies
+from py2dcos.core.adapter import Legacy2DWrapper as twoDspecies
 
 class AppController:
     def __init__(self):
