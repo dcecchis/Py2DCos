@@ -1,7 +1,7 @@
 # main.py
 import sys
 from PyQt5.QtWidgets import QApplication
-from src.py2dcos.gui.main_window import MainWindow
+from py2dcos.gui.main_window import MainWindow
 
 
 def main():

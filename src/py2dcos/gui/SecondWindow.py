@@ -1,7 +1,7 @@
 import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
-from src.core.ErrorMessages import ValidateSpecialCase
+from py2dcos.core.ErrorMessages import ValidateSpecialCase
 
 excelDir = None
 
