@@ -1,7 +1,10 @@
 import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
-from py2dcos.core.ErrorMessages import ValidateSpecialCase
+from py2dcos.core.ErrorMessages import (
+    validate_special_case,
+    InvalidExcelFormatError,
+)
 
 excelDir = None
 
@@ -130,11 +133,15 @@ class Ui_SecondWindow(QtWidgets.QDialog):
         if self.SpecialCaseButton.isChecked():
             columntext = self.ColumnText.text()
             rowtext = self.RowText.text()
-            if ValidateSpecialCase(columntext, rowtext):
-                self.row = self.RowText.text()
-                self.column = columntext
-                self.sheet = self.SheetBox.currentText()
-                swindow.close()
+            try:
+                validate_special_case(columntext, rowtext)
+            except InvalidExcelFormatError as e:
+                QtWidgets.QMessageBox.warning(self, "Invalid Input", str(e))
+                return        # keep dialog open
+            self.row = self.RowText.text()
+            self.column = columntext
+            self.sheet = self.SheetBox.currentText()
+            swindow.close()
 
         else:
             pass

@@ -1,14 +1,29 @@
-# main.py
 import sys
+import argparse
 from PyQt5.QtWidgets import QApplication
 from py2dcos.gui.main_window import MainWindow
 
 
-def main():
+def launch_gui():
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
     sys.exit(app.exec_())
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Py2DCoS: A tool for 2D correlation spectroscopy visualization and analysis"
+    )
+    parser.add_argument("--gui", action="store_true", help="Launch the Py2DCoS graphical interface")
+    # Placeholder for future CLI arguments
+    args = parser.parse_args()
+
+    if args.gui:
+        launch_gui()
+    else:
+        print("No CLI mode available yet. Use '--gui' to launch the graphical interface.")
+        parser.print_help()
 
 
 if __name__ == "__main__":

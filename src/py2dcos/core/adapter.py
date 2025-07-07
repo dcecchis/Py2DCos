@@ -1,11 +1,13 @@
 from py2dcos.core.correlation import TwoDCorrelation
 from py2dcos.core.io import reader, checkHeader
 from py2dcos.core.twoDspeciesNEW import twoDspecies
+from py2dcos.core.preprocessing import PCAProcessor
+from py2dcos.core.filters import apply_gaussian_filter
+from py2dcos.core.filters import apply_node_attenuation
 
 class Legacy2DWrapper:
     def __init__(self, filename1, filename2="", ref='ini', method="HT",
                  reconstruction_comps=0, sigma_gaussian=0, node_attenuation=False):
-        print("Legacy2DWrapper loaded")
         # Preprocess input
         if filename2 == "":
             filename2 = filename1
@@ -20,13 +22,29 @@ class Legacy2DWrapper:
         spec2 = reader(filename2)
         spec2 = checkHeader(spec2)
 
+        # PCA preprocessing
+        pca_proc = PCAProcessor()
+        spec1 = pca_proc.apply(spec1, n_components=reconstruction_comps, report_filename="pca_report1.txt")
+        spec2 = pca_proc.apply(spec2, n_components=reconstruction_comps, report_filename="pca_report2.txt")
+
+        # Gaussian smoothing
+        if sigma_gaussian > 0:
+            spec1 = apply_gaussian_filter(spec1, sigma=sigma_gaussian)
+            spec2 = apply_gaussian_filter(spec2, sigma=sigma_gaussian)
+
+        # Node Attenuation
+        if node_attenuation:
+            spec1 = apply_node_attenuation(spec1)
+            spec2 = apply_node_attenuation(spec2)
+
+        describe1 = spec1.transpose().describe().transpose()
+        describe2 = spec2.transpose().describe().transpose()
+
         self.first1 = spec1[1]
         self.first2 = spec2[1]
         self.last1 = spec1[spec1.columns[-2]]
         self.last2 = spec2[spec2.columns[-2]]
 
-        describe1 = spec1.transpose().describe().transpose()
-        describe2 = spec2.transpose().describe().transpose()
 
         if ref == 'zero':
             spec1_, spec2_ = spec1, spec2
@@ -64,7 +82,7 @@ class Legacy2DWrapper:
     def plotFunction(self, *args, **kwargs):
         """
         Temporary shim so the GUI can still call .plotFunction().
-        We spin up a throw-away twoDspecies instance that contains ONLY the
+        spin up a throw-away twoDspecies instance that contains ONLY the
         plotting routines and fake its internal fields so it plots the data
         we already computed.
         """

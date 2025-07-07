@@ -9,19 +9,12 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5 import QtGui
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from py2dcos.core.ErrorMessages import ValidateMethod, ValidateExtension, ValidateSpecialCase
-from py2dcos.core.twoDspeciesNEW import twoDspecies
 from py2dcos.gui.SecondWindow import Ui_SecondWindow
 from py2dcos.config.resources import color_list, cmap_list, initial_status, locators
 from py2dcos.controller.app_controller import AppController
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
-
-# configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -35,7 +28,7 @@ class MainWindow(QMainWindow):
 
     def _init_variables(self):
         self.prev = None
-        self.auxvar = False  # used for avoiding bug if changing setting options before plotting
+        self.plot_ready = False  # used for avoiding bug if changing setting options before plotting
         self.filename1 = ""
         self.filename2 = ""
         self.format1 = ""
@@ -423,10 +416,15 @@ class MainWindow(QMainWindow):
         self.file1_button.clicked.connect(self.upload_file)
         self.file2_button.clicked.connect(self.upload_file)
         # self.pca_checkbox.clicked.connect(self.toggle_pca_component)
-        self.num_of_contours_slider.valueChanged.connect(self.change_sliders)
-        self.color_intensity_slider.valueChanged.connect(self.change_sliders)
-        self.gaussian_filter_slider.valueChanged.connect(self.change_sliders)
-        self.contour_lines_intensity_slider.valueChanged.connect(self.change_sliders)
+        self.num_of_contours_slider.valueChanged.connect(self.update_slider_labels)
+        self.num_of_contours_slider.sliderReleased.connect(self.change_sliders)
+        self.color_intensity_slider.valueChanged.connect(self.update_slider_labels)
+        self.color_intensity_slider.sliderReleased.connect(self.change_sliders)
+        self.gaussian_filter_slider.valueChanged.connect(self.update_slider_labels)
+        self.gaussian_filter_slider.sliderReleased.connect(self.change_sliders)
+        self.contour_lines_intensity_slider.valueChanged.connect(self.update_slider_labels)
+        self.contour_lines_intensity_slider.sliderReleased.connect(self.change_sliders)
+
         self.corr_type_group.buttonClicked.connect(self.change_status)
         self.reference_spectra_group.buttonClicked.connect(self.change_status)
         # self.calc_method_group.buttonClicked.connect(self.change_status)
@@ -454,7 +452,7 @@ class MainWindow(QMainWindow):
         self.decreasing_x_button.setChecked(True)
         self.both_graph_option.setChecked(True)
         self.all_signs_option.setChecked(True)
-        self.status["figure"] = self.figure
+        # self.status["figure"] = self.figure
 
     def upload_file(self):
         try:
@@ -496,14 +494,12 @@ class MainWindow(QMainWindow):
             self.ui2 = ui
         self.second_window.show()
 
-    def change_sliders(self):
+    def update_slider_labels(self):
         slider_map = {
             self.gaussian_filter_slider: ("Gaussian Smoothening: ", self.gaussian_filter_label, 'sigmaGaussian', 1),
             self.num_of_contours_slider: ("Number of Contours: ", self.num_of_contours_label, 'numOfContour', 1),
-            self.color_intensity_slider: (
-            "Color Intensity: ", self.color_intensity_label, 'colorMapIntensity', 100.),
-            self.contour_lines_intensity_slider: (
-            "Contour Lines Intensity: ", self.contour_lines_intensity_label, 'colorLinesIntensity', 100.)
+            self.color_intensity_slider: ("Color Intensity: ", self.color_intensity_label, 'colorMapIntensity', 100.),
+            self.contour_lines_intensity_slider: ("Contour Lines Intensity: ", self.contour_lines_intensity_label, 'colorLinesIntensity', 100.)
         }
         sender = self.sender()
         if sender in slider_map:
@@ -511,43 +507,63 @@ class MainWindow(QMainWindow):
             value = sender.value() / divisor
             if status_key == 'numOfContour':
                 value = int(value)
-            label_widget.setText(f"{label_text} {sender.value()}")
+            label_widget.setText(f"{label_text}{sender.value()}")
             self.status[status_key] = value
             logging.info(f"Updated {status_key}: {value} (from {label_text})")
-        if self.auxvar:
-            self.figure.clear()
-            self.corr.plotFunction(**self.status)
-            logging.info("Updated figure with new status values.")
+
+    def change_sliders(self):
+        
+        self.update_slider_labels()
+        if not self.plot_ready:
+            return
+        self.figure.clear()
+        plot_status = self.get_plot_args()
+        self.corr.plotFunction(**plot_status)
+        self.canvas.draw()
+        logging.info("Updated figure with new slider values.")
 
     def change_status(self):
         sender = self.sender()
         recalc_required = False
         matched = False  # debugging tool
-        recalc_controls = {self.gaussian_filter_slider, self.node_attenuation_checkbox, self.corr_type_group, self.pca_reconstruction_components_combobox, self.reference_spectra_group}
+
+        recalc_controls = {
+            self.gaussian_filter_slider,
+            self.node_attenuation_checkbox,
+            self.corr_type_group,
+            self.pca_reconstruction_components_combobox,
+            self.reference_spectra_group
+        }
 
         for control, func in self.get_update_functions().items():
-            if isinstance(control, QButtonGroup):  # checks if the key is a button group, then if the sender is the group itself or a widget contained in it
-                if sender == control or sender in control.buttons():  # some groups might send themselves as senders
+            if isinstance(control, QButtonGroup):
+                if sender == control or sender in control.buttons():
                     func()
                     if control in recalc_controls:
                         recalc_required = True
                     matched = True
                     break
-            elif sender == control:  # in this case the sender obviously wont be a group or part of a group
+            elif sender == control:
                 func()
                 if control in recalc_controls:
                     recalc_required = True
                 matched = True
                 break
+
         if not matched:
-            logging.warning(f"No update function found for sender: {sender}")
-        if not self.auxvar:
+            logging.warning(f"[change_status] No update function matched for sender: {repr(sender)}")
+
+        if not self.plot_ready:
             return
+
         if recalc_required:
             self.recalculate_correlation()
+
+        plot_status = self.get_plot_args()
         self.figure.clear()
-        self.corr.plotFunction(**self.status)
+        self.corr.plotFunction(**plot_status)
         self.canvas.draw()
+
 
     def get_update_functions(self):
         return {
@@ -565,6 +581,15 @@ class MainWindow(QMainWindow):
             self.contour_lines_color_box: self.update_color_lines,
             self.peaks_signs_group: self.update_signs
         }
+    
+    def get_plot_args(self):
+        plot_keys = {
+            'corrType', 'calcMethod', 'refSpectra', 'colorMap', 'numOfContour',
+            'locator_choice', 'syncDiag', 'asyncDiag', 'xAxis', 'colorMapIntensity',
+            'colorLines', 'colorLinesIntensity', 'shownGraph', 'canvas', 'figure', 'peaks_signs'
+        }
+        return {k: v for k, v in self.status.items() if k in plot_keys}
+
 
     def recalculate_correlation(self):
         try:
@@ -638,13 +663,7 @@ class MainWindow(QMainWindow):
         self.set_status_value('colorLines', self.contour_lines_color_box.currentText())
 
     def plot_button_function(self):
-        allowed_keys = {
-            'corrType', 'calcMethod', 'refSpectra', 'colorMap', 'numOfContour',
-            'locator_choice', 'syncDiag', 'asyncDiag', 'xAxis', 'colorMapIntensity', 'colorLines',
-            'colorLinesIntensity', 'shownGraph', 'canvas', 'figure', 'peaks_signs'
-        }
-
-        plot_status = {k: v for k, v in self.status.items() if k in allowed_keys}
+        plot_status = self.get_plot_args()
 
         try:
             if hasattr(self, 'ui1') and self.format1 == "xlsx":
@@ -660,6 +679,7 @@ class MainWindow(QMainWindow):
             if self.corr:
                 self.corr.canvas_ = self.canvas
                 self.corr.plotFunction(**plot_status)
+                self.plot_ready = True
                 logging.info("Plot generated succesfully.")
 
         except ValueError as ve:
