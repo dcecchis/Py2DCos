@@ -25,7 +25,7 @@ Key features
 
 ---
 
-## ⚙️ Installation
+## Installation
 
 Install from the repository:
 
