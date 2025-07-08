@@ -707,7 +707,7 @@ class MainWindow(QMainWindow):
         try:
             # Optionally, you might clear or prepare a separate 3D canvas if needed.
             color_map = self.status.get('colorMap', 'coolwarm')
-            self.correlation_model.plot3D(colorMap=color_map)
+            self.plotter.plot3d(color_map=color_map)
             logging.info("3D plot generated successfully.")
         except Exception as e:
             logging.exception("Error generating 3D plot.")
