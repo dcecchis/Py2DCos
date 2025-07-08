@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from py2dcos.core.correlation import TwoDCorrelation
 from py2dcos.core.io import reader, checkHeader
-from py2dcos.plotting.correlation_plot import CorrelationPlotter
 from py2dcos.core.preprocessing import PCAProcessor
 from py2dcos.core.filters import apply_gaussian_filter, apply_node_attenuation
 

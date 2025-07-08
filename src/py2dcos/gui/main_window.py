@@ -687,8 +687,7 @@ class MainWindow(QMainWindow):
             self.correlation_model = self.controller.build_model(self.filename1, self.filename2, self.status)
             if self.correlation_model:
                 self.plotter = CorrelationPlotter(model = self.correlation_model, figure = self.figure, canvas = self.canvas)
-                self.plotter.plot(canvas=True, **plot_status)
-                # self.correlation_model.plot(figure = self.figure, canvas=True, **plot_status)
+                self.plotter.plot(**plot_status)
                 self.plot_ready = True
                 logging.info("Plot generated succesfully.")
 
