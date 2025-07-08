@@ -1,7 +1,7 @@
 import pandas as pd
 from PyQt5 import QtCore, QtGui, QtWidgets
 import sys
-from py2dcos.core.ErrorMessages import (
+from py2dcos.core.validators import (
     validate_special_case,
     InvalidExcelFormatError,
 )

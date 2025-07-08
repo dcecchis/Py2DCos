@@ -1,103 +1,122 @@
+from __future__ import annotations
+
 from py2dcos.core.correlation import TwoDCorrelation
 from py2dcos.core.io import reader, checkHeader
-from py2dcos.core.twoDspeciesNEW import twoDspecies
+from py2dcos.plotting.correlation_plot import TwoDCorrPlotter
 from py2dcos.core.preprocessing import PCAProcessor
-from py2dcos.core.filters import apply_gaussian_filter
-from py2dcos.core.filters import apply_node_attenuation
+from py2dcos.core.filters import apply_gaussian_filter, apply_node_attenuation
 
-class Legacy2DWrapper:
-    def __init__(self, filename1, filename2="", ref='ini', method="HT",
-                 reconstruction_comps=0, sigma_gaussian=0, node_attenuation=False):
-        # Preprocess input
-        if filename2 == "":
+
+class CorrelationAdapter:
+
+    def __init__(
+        self,
+        filename1,
+        filename2: str | list = "",
+        *,
+        ref: str = "ini",
+        method: str = "HT",
+        reconstruction_comps: int = 0,
+        sigma_gaussian: float = 0.0,
+        node_attenuation: bool = False,
+    ):
+
+        if not filename2:
             filename2 = filename1
-        if isinstance(filename1, str):
-            filename1 = [filename1, filename1.split('.')[-2]]
-        if isinstance(filename2, str):
-            filename2 = [filename2, filename2.split('.')[-2]]
 
-        # Read and sanitize
-        spec1 = reader(filename1)
-        spec1 = checkHeader(spec1)
-        spec2 = reader(filename2)
-        spec2 = checkHeader(spec2)
+        def _normalise(path_or_list):
+            if isinstance(path_or_list, str):
+                return [path_or_list, path_or_list.split(".")[-2]]
+            return path_or_list
 
-        # PCA preprocessing
-        pca_proc = PCAProcessor()
-        spec1 = pca_proc.apply(spec1, n_components=reconstruction_comps, report_filename="pca_report1.txt")
-        spec2 = pca_proc.apply(spec2, n_components=reconstruction_comps, report_filename="pca_report2.txt")
+        filename1 = _normalise(filename1)
+        filename2 = _normalise(filename2)
 
-        # Gaussian smoothing
+        spec1 = checkHeader(reader(filename1))
+        spec2 = checkHeader(reader(filename2))
+
+        pca = PCAProcessor()
+        spec1 = pca.apply(spec1, n_components=reconstruction_comps, report_filename="pca_report1.txt")
+        spec2 = pca.apply(spec2, n_components=reconstruction_comps, report_filename="pca_report2.txt")
+
         if sigma_gaussian > 0:
             spec1 = apply_gaussian_filter(spec1, sigma=sigma_gaussian)
             spec2 = apply_gaussian_filter(spec2, sigma=sigma_gaussian)
 
-        # Node Attenuation
         if node_attenuation:
             spec1 = apply_node_attenuation(spec1)
             spec2 = apply_node_attenuation(spec2)
 
-        describe1 = spec1.transpose().describe().transpose()
-        describe2 = spec2.transpose().describe().transpose()
+        desc1 = spec1.T.describe().T
+        desc2 = spec2.T.describe().T
 
-        self.first1 = spec1[1]
-        self.first2 = spec2[1]
-        self.last1 = spec1[spec1.columns[-2]]
-        self.last2 = spec2[spec2.columns[-2]]
+        ref_map = {
+            "zero":  (spec1, spec2),
+            "mean":  (spec1.sub(desc1["mean"], axis=0), spec2.sub(desc2["mean"], axis=0)),
+            "min":   (spec1.sub(desc1["min"], axis=0),  spec2.sub(desc2["min"], axis=0)),
+            "max":   (spec1.sub(desc1["max"], axis=0),  spec2.sub(desc2["max"], axis=0)),
+            "ini":   (spec1.sub(spec1[1], axis=0),      spec2.sub(spec2[1], axis=0)),
+            "end":   (spec1.sub(spec1.iloc[:, -1], axis=0), spec2.sub(spec2.iloc[:, -1], axis=0)),
+        }
+        spec1_, spec2_ = ref_map.get(ref, (spec1, spec2))
 
+        self.describe1 = desc1
+        self.describe2 = desc2
+        self.first1, self.last1 = spec1[1], spec1.iloc[:, -2]
+        self.first2, self.last2 = spec2[1], spec2.iloc[:, -2]
 
-        if ref == 'zero':
-            spec1_, spec2_ = spec1, spec2
-        elif ref == 'mean':
-            spec1_ = spec1.sub(describe1['mean'], axis=0)
-            spec2_ = spec2.sub(describe2['mean'], axis=0)
-        elif ref == 'min':
-            spec1_ = spec1.sub(describe1['min'], axis=0)
-            spec2_ = spec2.sub(describe2['min'], axis=0)
-        elif ref == 'max':
-            spec1_ = spec1.sub(describe1['max'], axis=0)
-            spec2_ = spec2.sub(describe2['max'], axis=0)
-        elif ref == 'ini':
-            spec1_ = spec1.sub(spec1[1], axis=0)
-            spec2_ = spec2.sub(spec2[1], axis=0)
-        elif ref == 'end':
-            spec1_ = spec1.sub(spec1[spec1.columns[-1]], axis=0)
-            spec2_ = spec2.sub(spec2[spec2.columns[-1]], axis=0)
-
-        self.describe1 = describe1
-        self.describe2 = describe2
-
-        # Core math object
-        self.core = TwoDCorrelation(
-                spec1_,
-                spec2_
-            )
-
-    def syn(self, method="HT"):
+        self.core = TwoDCorrelation(spec1_, spec2_)
         self.syncr = self.core.sync(method=method)
-
-    def asyn(self, method="HT"):
         self.asyncr = self.core.async_(method=method)
 
-    def plotFunction(self, *args, **kwargs):
-        """
-        Temporary shim so the GUI can still call .plotFunction().
-        spin up a throw-away twoDspecies instance that contains ONLY the
-        plotting routines and fake its internal fields so it plots the data
-        we already computed.
-        """
-        temp = twoDspecies.__new__(twoDspecies)          # create naked instance
-        # wire in data structures the old plotFunction expects
-        temp.syncr = self.syncr
-        temp.asyncr = self.asyncr
-        temp.describe1 = self.describe1
-        temp.describe2 = self.describe2
-        temp.first1 = self.first1
-        temp.first2 = self.first2
-        temp.last1  = self.last1
-        temp.last2  = self.last2
-        # give it access to the same matplotlib figure / canvas if provided
-        temp.canvas_ = getattr(self, "canvas_", None)
-        temp.figure  = getattr(self, "figure",  None)
-        # finally, forward the plotting call
-        return twoDspecies.plotFunction(temp, *args, **kwargs)
+        # Canvas can be injected later by the GUI
+        self.canvas_: None | object = None
+
+    def syn(self, method: str = "HT"):
+        self.syncr = self.core.sync(method=method)
+
+    def asyn(self, method: str = "HT"):
+        self.asyncr = self.core.async_(method=method)
+
+
+    def plot(self, *, figure=None, canvas: bool = False, **plot_kwargs):
+        """Return a Matplotlib Figure with the requested 2-D correlation plot."""
+        plotter = TwoDCorrPlotter(
+            syncr=self.syncr,
+            asyncr=self.asyncr,
+            describe1=self.describe1,
+            describe2=self.describe2,
+            first1=self.first1,
+            last1=self.last1,
+            first2=self.first2,
+            last2=self.last2,
+            figure=figure,
+            canvas=self.canvas_ if canvas else None,
+        )
+        return plotter.plot(**plot_kwargs)
+
+    def plotFunction(self, *_, **plot_kwargs):
+        """Temporary shim so existing GUI code keeps working."""
+        rename_map = {
+            "corrType": "corr_type",
+            "calcMethod": "calc_method",
+            "refSpectra": "ref_spectra",
+            "colorMap": "color_map",
+            "numOfContour": "num_of_contour",
+            "locator_choice": "locator_choice",  # already snake_case
+            "syncDiag": "sync_diag",
+            "asyncDiag": "async_diag",
+            "xAxis": "x_axis",
+            "colorMapIntensity": "color_map_intensity",
+            "colorLines": "color_lines",
+            "colorLinesIntensity": "color_lines_intensity",
+            "shownGraph": "shown_graph",
+            "peaks_signs": "peaks_signs",
+        }
+
+        translated = {
+            rename_map.get(k, k): v
+            for k, v in plot_kwargs.items()
+        }
+
+        return self.plot(**translated)

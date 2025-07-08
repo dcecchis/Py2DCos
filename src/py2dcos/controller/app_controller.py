@@ -1,11 +1,11 @@
 import logging
-from py2dcos.core.ErrorMessages import (
+from py2dcos.core.validators import (
     validate_method,
     validate_extension,
     UnsupportedExtensionError,
     UnsupportedMethodError,
 )
-from py2dcos.core.adapter import Legacy2DWrapper as twoDspecies
+from py2dcos.core.adapter import CorrelationAdapter as twoDspecies
 
 class AppController:
     def __init__(self):

@@ -1,38 +1,73 @@
+from __future__ import annotations
+from typing import Optional
+
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from scipy.interpolate import RegularGridInterpolator
 import numpy as np
 import matplotlib as mpl
-import pandas as pd
-import matplotlib.pyplot as plt
-import plotly.graph_objs as go
-from scipy.interpolate import RegularGridInterpolator
 import matplotlib.ticker as ticker
+import pandas as pd
+import plotly.graph_objs as go
+
 from py2dcos.core.locator import define_locator
 
-class twoDCorrPlotter:
-    def __init__(self, filename1: (list, str), filename2: (list, str) = '',
-                 ref: str = 'ini', output: bool = False, method: str = "HT",
-                 sigma_gaussian=0,
-                 reconstruction_comps=0,
-                 node_attenuation=False):
-        pass
 
+class TwoDCorrPlotter:
 
-    def plotFunction(self, corrType='homo', calcMethod='HT', refSpectra='ini', colorMap='coolwarm',
-                     numOfContour=6, locator_choice='linear', syncDiag='main', asyncDiag='anti', xAxis='decreasing', colorMapIntensity=1.0,
-                     colorLines='black', colorLinesIntensity=0.6, shownGraph='both', canvas=False, figure=None,
-                     eqSpaced=True, peaks_signs='all'):
-        if figure:
-            figure.clear()
+    def __init__(
+        self,
+        *,
+        syncr: pd.DataFrame,
+        asyncr: pd.DataFrame,
+        describe1: pd.DataFrame,
+        describe2: pd.DataFrame,
+        first1,
+        last1,
+        first2,
+        last2,
+        figure: Optional[Figure] = None,
+        canvas: Optional[FigureCanvasQTAgg] = None,
+    ):
+        self.syncr = syncr
+        self.asyncr = asyncr
+        self.describe1 = describe1
+        self.describe2 = describe2
+        self.first1 = first1
+        self.last1 = last1
+        self.first2 = first2
+        self.last2 = last2
+
+        self.figure: Figure = figure or plt.figure()
+        self.canvas_ = canvas
+
+    def plot(
+        self,
+        *,
+        corrType: str = "homo",
+        calcMethod: str = "HT",
+        refSpectra: str = "ini",
+        colorMap: str = "coolwarm",
+        numOfContour: int = 6,
+        locator_choice: str = "linear",
+        syncDiag: str = "main",
+        asyncDiag: str = "anti",
+        xAxis: str = "decreasing",
+        colorMapIntensity: float = 1.0,
+        colorLines: str = "black",
+        colorLinesIntensity: float = 0.6,
+        shownGraph: str = "both",
+        peaks_signs: str = "all",
+        canvas: bool = False,
+    ) -> Figure:
+
+        self.figure.clf()
 
         locator = define_locator(locator_choice, numOfContour)
 
         fontsize = 8
         linewidth = 0.9
-
-        if figure == None:
-            self.figure = plt.figure()
-        else:
-            self.figure = figure
-
         self.figure.set_facecolor("#f0f0f0")
 
         ## Synchronous Spectra
@@ -618,34 +653,8 @@ class twoDCorrPlotter:
             else:
                 plt.show()
 
-    def plot3D(self, colorMap='coolwarm'):
 
-        """
-
-        syncr3d = plt.figure()
-        asyncr3d = plt.figure()
-
-        #syncr
-        ax = syncr3d.add_subplot(111, projection='3d')
-        X, Y = np.meshgrid(self.syncr.index, self.syncr.columns)
-        Z = self.syncr.values
-        ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap= colorMap)
-        ax.set_xlabel('wavenumber')
-        ax.set_ylabel('wavenumber')
-        ax.set_title('Synchronous surface')
-        syncr3d.show()
-
-        #asyncr
-        ax = asyncr3d.add_subplot(111, projection='3d')
-        X, Y = np.meshgrid(self.asyncr.index, self.asyncr.columns)
-        Z = self.asyncr.values
-        ax.plot_surface(X, Y, Z, rstride=1, cstride=1, cmap= colorMap)
-        ax.set_xlabel('wavenumber')
-        ax.set_ylabel('wavenumber')
-        ax.set_title('Asynchronous surface')
-        asyncr3d.show()
-
-        """
+    def plot3d(self, *, color_map: str = "coolwarm"):
         fig = go.Figure(data=[go.Surface(x=self.syncr.index, y=self.syncr.columns, z=self.syncr.values)])
 
         fig.update_layout(title='Synchronous Spectra',
@@ -658,9 +667,4 @@ class twoDCorrPlotter:
 
         fig2.update_layout(title='Asynchronous Spectra',
                            margin=dict(l=65, r=50, b=65, t=90))
-        """
-        fig2.update_layout(title='Asynchronous Spectra', autosize=False,
-                          width=1000, height=1000,
-                          margin=dict(l=65, r=50, b=65, t=90))
-        """
         fig2.show()

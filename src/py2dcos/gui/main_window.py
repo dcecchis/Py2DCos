@@ -1,7 +1,7 @@
 import logging
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QHBoxLayout, QVBoxLayout, QGridLayout, QWidget,
+    QMainWindow, QHBoxLayout, QVBoxLayout, QGridLayout, QWidget,
     QPushButton, QLabel, QRadioButton, QSizePolicy, QMessageBox, QSlider,
     QComboBox, QFileDialog, QButtonGroup, QSpacerItem, QCheckBox
 )
@@ -15,6 +15,16 @@ from py2dcos.controller.app_controller import AppController
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+# Constants
+MIN_CONTOURS = 1
+MAX_CONTOURS = 40
+MIN_INTENSITY = 0
+MAX_INTENSITY = 100
+MIN_LINES_INTENSITY = 0
+MAX_LINES_INTENSITY = 100
+MIN_GAUSSIAN = 0
+MAX_GAUSSIAN = 5
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -34,7 +44,6 @@ class MainWindow(QMainWindow):
         self.format1 = ""
         self.format2 = ""
         self.status = initial_status.copy()
-        self.status["figure"] = self.figure
 
     def setup_ui(self):
         # central widget, layouts and UI components
@@ -151,12 +160,12 @@ class MainWindow(QMainWindow):
         self.data_treatment_grid_layout.addWidget(self.pca_reconstruction_components_combobox, 0, 1)
 
         self.gaussian_filter_slider = QSlider(Qt.Horizontal)
-        self.gaussian_filter_slider.setMinimum(0)
-        self.gaussian_filter_slider.setMaximum(5)
+        self.gaussian_filter_slider.setMinimum(MIN_GAUSSIAN)
+        self.gaussian_filter_slider.setMaximum(MAX_GAUSSIAN)
         self.gaussian_filter_slider.setValue(0)
         self.data_treatment_grid_layout.addWidget(self.gaussian_filter_slider, 1, 1)
 
-        self.gaussian_filter_label = QLabel(f"Gaussian Smoothening: {self.gaussian_filter_slider.value()}")
+        self.gaussian_filter_label = QLabel(f"Gaussian Smoothing: {self.gaussian_filter_slider.value()}")
         self.gaussian_filter_label.setFont(self.get_font_text())
         self.data_treatment_grid_layout.addWidget(self.gaussian_filter_label, 1, 0, alignment=Qt.AlignCenter)
 
@@ -204,15 +213,15 @@ class MainWindow(QMainWindow):
         self.graph_settings_grid = QGridLayout()
         # Number of contours slider
         self.num_of_contours_slider = QSlider(Qt.Horizontal)
-        self.num_of_contours_slider.setMinimum(1)
-        self.num_of_contours_slider.setMaximum(40)
+        self.num_of_contours_slider.setMinimum(MIN_CONTOURS)
+        self.num_of_contours_slider.setMaximum(MAX_CONTOURS)
         self.num_of_contours_slider.setValue(6)
         self.graph_settings_grid.addWidget(self.num_of_contours_slider, 0, 1)
         self.num_of_contours_label = QLabel(f"Number of Contours: {self.num_of_contours_slider.value()}")
         self.num_of_contours_label.setFont(self.get_font_text())
         self.graph_settings_grid.addWidget(self.num_of_contours_label, 0, 0)
         # Locator combo box
-        self.locator_label = QLabel("Loctator")
+        self.locator_label = QLabel("Locator")
         self.locator_label.setFont(self.get_font_text())
         self.graph_settings_grid.addWidget(self.locator_label, 1, 0)
         self.locator_box = QComboBox()
@@ -240,8 +249,8 @@ class MainWindow(QMainWindow):
         self.graph_settings_grid.addWidget(self.contour_lines_color_box, 3, 1)
         # Color intensity slider
         self.color_intensity_slider = QSlider(Qt.Horizontal)
-        self.color_intensity_slider.setMinimum(1)
-        self.color_intensity_slider.setMaximum(100)
+        self.color_intensity_slider.setMinimum(MIN_INTENSITY)
+        self.color_intensity_slider.setMaximum(MAX_INTENSITY)
         self.color_intensity_slider.setValue(100)
         self.graph_settings_grid.addWidget(self.color_intensity_slider, 4, 1)
         self.color_intensity_label = QLabel(f"Color Intensity: {self.color_intensity_slider.value()}")
@@ -249,8 +258,8 @@ class MainWindow(QMainWindow):
         self.graph_settings_grid.addWidget(self.color_intensity_label, 4, 0)
         # Contour lines intensity slider
         self.contour_lines_intensity_slider = QSlider(Qt.Horizontal)
-        self.contour_lines_intensity_slider.setMinimum(1)
-        self.contour_lines_intensity_slider.setMaximum(100)
+        self.contour_lines_intensity_slider.setMinimum(MIN_LINES_INTENSITY)
+        self.contour_lines_intensity_slider.setMaximum(MAX_LINES_INTENSITY)
         self.contour_lines_intensity_slider.setValue(60)
         self.graph_settings_grid.addWidget(self.contour_lines_intensity_slider, 5, 1)
         self.contour_lines_intensity_label = QLabel(
@@ -518,7 +527,7 @@ class MainWindow(QMainWindow):
             return
         self.figure.clear()
         plot_status = self.get_plot_args()
-        self.corr.plotFunction(**plot_status)
+        self.corr.plotFunction(figure=self.figure, canvas=True, **plot_status)
         self.canvas.draw()
         logging.info("Updated figure with new slider values.")
 
@@ -561,7 +570,7 @@ class MainWindow(QMainWindow):
 
         plot_status = self.get_plot_args()
         self.figure.clear()
-        self.corr.plotFunction(**plot_status)
+        self.corr.plotFunction(figure=self.figure, canvas=True, **plot_status)
         self.canvas.draw()
 
 
@@ -586,7 +595,7 @@ class MainWindow(QMainWindow):
         plot_keys = {
             'corrType', 'calcMethod', 'refSpectra', 'colorMap', 'numOfContour',
             'locator_choice', 'syncDiag', 'asyncDiag', 'xAxis', 'colorMapIntensity',
-            'colorLines', 'colorLinesIntensity', 'shownGraph', 'canvas', 'figure', 'peaks_signs'
+            'colorLines', 'colorLinesIntensity', 'shownGraph', 'peaks_signs'
         }
         return {k: v for k, v in self.status.items() if k in plot_keys}
 
@@ -674,11 +683,11 @@ class MainWindow(QMainWindow):
                 location = [self.ui2.sheet, self.ui2.row, self.ui2.column, self.ui2.labeledColumns.isChecked()]
                 self.filename2 += location
 
-            print(self.status)
             self.corr = self.controller.calculate_correlation(self.filename1, self.filename2, self.status)
             if self.corr:
                 self.corr.canvas_ = self.canvas
-                self.corr.plotFunction(**plot_status)
+                print("plot_status keys:", plot_status.keys())
+                self.corr.plotFunction(figure = self.figure, canvas=True, **plot_status)
                 self.plot_ready = True
                 logging.info("Plot generated succesfully.")
 
