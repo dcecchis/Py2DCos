@@ -37,7 +37,6 @@ class AppController:
         # Recreate the correlation object only if the state has changed.
         if self.prev_state != current_state:
             logging.info("Creating new correlation object.")
-            print(file1)
             self.correlation_obj = twoDspecies(
                 file1, 
                 file2, 

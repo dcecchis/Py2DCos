@@ -1,6 +1,5 @@
-from matplotlib import ticker
-
 def define_locator(locator_choice='linear', levels=6):
+    from matplotlib import ticker
 
     locator_map = {
         'linear': lambda: ticker.LinearLocator(numticks=levels),

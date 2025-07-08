@@ -45,9 +45,6 @@ class TwoDCorrPlotter:
     def plot(
         self,
         *,
-        corrType: str = "homo",
-        calcMethod: str = "HT",
-        refSpectra: str = "ini",
         colorMap: str = "coolwarm",
         numOfContour: int = 6,
         locator_choice: str = "linear",
@@ -225,9 +222,8 @@ class TwoDCorrPlotter:
 
             # plt.tight_layout()
 
-            if canvas:
-                self.canvas_.figure = self.figure
-                self.canvas_.draw()
+            if canvas and self.canvas_ is not None:
+                self.canvas_.draw_idle()
 
             else:
                 plt.show()
@@ -390,9 +386,8 @@ class TwoDCorrPlotter:
 
             # plt.tight_layout()
 
-            if canvas:
-                self.canvas_.figure = self.figure
-                self.canvas_.draw()
+            if canvas and self.canvas_ is not None:
+                self.canvas_.draw_idle()
             else:
                 plt.show()
 
@@ -646,9 +641,8 @@ class TwoDCorrPlotter:
             # gs.subplots_adjust(left = 0.1, bottom = 0.1, right = 0.9, top = 0.9, wspace=0.4, hspace=0.4)
 
             # plt.tight_layout()
-            if canvas:
-                self.canvas_.figure = self.figure
-                self.canvas_.draw()
+            if canvas and self.canvas_ is not None:
+                self.canvas_.draw_idle()
 
             else:
                 plt.show()

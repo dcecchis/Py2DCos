@@ -22,7 +22,7 @@ class CorrelationAdapter:
     ):
 
         if not filename2:
-            filename2 = filename1
+            filename2 = filename1.copy()
 
         def _normalise(path_or_list):
             if isinstance(path_or_list, str):
@@ -93,30 +93,4 @@ class CorrelationAdapter:
             figure=figure,
             canvas=self.canvas_ if canvas else None,
         )
-        return plotter.plot(**plot_kwargs)
-
-    def plotFunction(self, *_, **plot_kwargs):
-        """Temporary shim so existing GUI code keeps working."""
-        rename_map = {
-            "corrType": "corr_type",
-            "calcMethod": "calc_method",
-            "refSpectra": "ref_spectra",
-            "colorMap": "color_map",
-            "numOfContour": "num_of_contour",
-            "locator_choice": "locator_choice",  # already snake_case
-            "syncDiag": "sync_diag",
-            "asyncDiag": "async_diag",
-            "xAxis": "x_axis",
-            "colorMapIntensity": "color_map_intensity",
-            "colorLines": "color_lines",
-            "colorLinesIntensity": "color_lines_intensity",
-            "shownGraph": "shown_graph",
-            "peaks_signs": "peaks_signs",
-        }
-
-        translated = {
-            rename_map.get(k, k): v
-            for k, v in plot_kwargs.items()
-        }
-
-        return self.plot(**translated)
+        return plotter.plot(canvas=canvas, **plot_kwargs)

@@ -527,7 +527,7 @@ class MainWindow(QMainWindow):
             return
         self.figure.clear()
         plot_status = self.get_plot_args()
-        self.corr.plotFunction(figure=self.figure, canvas=True, **plot_status)
+        self.corr.plot(figure=self.figure, canvas=True, **plot_status)
         self.canvas.draw()
         logging.info("Updated figure with new slider values.")
 
@@ -570,7 +570,7 @@ class MainWindow(QMainWindow):
 
         plot_status = self.get_plot_args()
         self.figure.clear()
-        self.corr.plotFunction(figure=self.figure, canvas=True, **plot_status)
+        self.corr.plot(figure=self.figure, canvas=True, **plot_status)
         self.canvas.draw()
 
 
@@ -593,9 +593,9 @@ class MainWindow(QMainWindow):
     
     def get_plot_args(self):
         plot_keys = {
-            'corrType', 'calcMethod', 'refSpectra', 'colorMap', 'numOfContour',
-            'locator_choice', 'syncDiag', 'asyncDiag', 'xAxis', 'colorMapIntensity',
-            'colorLines', 'colorLinesIntensity', 'shownGraph', 'peaks_signs'
+            'colorMap', 'numOfContour', 'locator_choice', 'syncDiag', 
+            'asyncDiag', 'xAxis', 'colorMapIntensity', 'colorLines', 
+            'colorLinesIntensity', 'shownGraph', 'peaks_signs'
         }
         return {k: v for k, v in self.status.items() if k in plot_keys}
 
@@ -686,8 +686,7 @@ class MainWindow(QMainWindow):
             self.corr = self.controller.calculate_correlation(self.filename1, self.filename2, self.status)
             if self.corr:
                 self.corr.canvas_ = self.canvas
-                print("plot_status keys:", plot_status.keys())
-                self.corr.plotFunction(figure = self.figure, canvas=True, **plot_status)
+                self.corr.plot(figure = self.figure, canvas=True, **plot_status)
                 self.plot_ready = True
                 logging.info("Plot generated succesfully.")
 
