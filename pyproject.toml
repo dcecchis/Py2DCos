@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "py2dcos"
+version = "0.1.0"
+description = "2D Correlation Spectroscopy tool"
+authors = [
+  {name="Julio de la Paz", email="juliodelapazc@hotmail.com"},
+  {name="Dany de Cecchis", email="dany@espol.edu.ec"}  
+]
+readme = "README.md"
+requires-python = ">=3.12.1"
+license = {text = "MIT"}
+
+dependencies = [
+  "numpy",
+  "scipy",
+  "matplotlib",
+  "pandas",
+  "PyQt5",
+  "plotly",
+  "openpyxl"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/dcecchis/Py2DCos"
+
+[project.scripts]
+py2dcos = "py2dcos.__main__:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
