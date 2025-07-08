@@ -12,6 +12,7 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from py2dcos.gui.SecondWindow import Ui_SecondWindow
 from py2dcos.config.resources import color_list, cmap_list, initial_status, locators
 from py2dcos.controller.app_controller import AppController
+from py2dcos.plotting.correlation_plot import CorrelationPlotter
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -525,9 +526,10 @@ class MainWindow(QMainWindow):
         self.update_slider_labels()
         if not self.plot_ready:
             return
-        self.figure.clear()
+        
+        #self.plotter.figure.clear()
         plot_status = self.get_plot_args()
-        self.corr.plot(figure=self.figure, canvas=True, **plot_status)
+        self.plotter.plot(**plot_status)
         self.canvas.draw()
         logging.info("Updated figure with new slider values.")
 
@@ -569,8 +571,8 @@ class MainWindow(QMainWindow):
             self.recalculate_correlation()
 
         plot_status = self.get_plot_args()
-        self.figure.clear()
-        self.corr.plot(figure=self.figure, canvas=True, **plot_status)
+        #self.figure.clear()
+        self.plotter.plot(**plot_status)
         self.canvas.draw()
 
 
@@ -578,7 +580,6 @@ class MainWindow(QMainWindow):
         return {
             self.node_attenuation_checkbox: self.update_node_att_bool,
             self.corr_type_group: self.update_correlation_type,
-#            self.calc_method_group: self.update_calc_method,
             self.pca_reconstruction_components_combobox: self.update_pca_reconstruction_components,
             self.reference_spectra_group: self.update_ref_spectra,
             self.sync_diagonals_group: self.update_sync_diag,
@@ -604,8 +605,8 @@ class MainWindow(QMainWindow):
         try:
             calc_method = self.status.get('calcMethod', 'default')
             logging.info(f"Recalculating correlation using method: {calc_method}")
-            self.corr.syn(method=self.status['calcMethod'])
-            self.corr.asyn(method=self.status['calcMethod'])
+            self.correlation_model.syn(method=self.status['calcMethod'])
+            self.correlation_model.asyn(method=self.status['calcMethod'])
             logging.info("Correlation recalculation completed successfully.")
         except Exception as e:
             error_msg = f"An error occurred during recalculation: {str(e)}"
@@ -683,10 +684,11 @@ class MainWindow(QMainWindow):
                 location = [self.ui2.sheet, self.ui2.row, self.ui2.column, self.ui2.labeledColumns.isChecked()]
                 self.filename2 += location
 
-            self.corr = self.controller.calculate_correlation(self.filename1, self.filename2, self.status)
-            if self.corr:
-                self.corr.canvas_ = self.canvas
-                self.corr.plot(figure = self.figure, canvas=True, **plot_status)
+            self.correlation_model = self.controller.build_model(self.filename1, self.filename2, self.status)
+            if self.correlation_model:
+                self.plotter = CorrelationPlotter(model = self.correlation_model, figure = self.figure, canvas = self.canvas)
+                self.plotter.plot(canvas=True, **plot_status)
+                # self.correlation_model.plot(figure = self.figure, canvas=True, **plot_status)
                 self.plot_ready = True
                 logging.info("Plot generated succesfully.")
 
@@ -699,14 +701,14 @@ class MainWindow(QMainWindow):
 
     def plot_tridimensional(self):
         # Check if the correlation object exists and appears ready.
-        if self.corr is None:
+        if self.correlation_model is None:
             logging.info("3D plot not generated because the correlation object is not ready.")
             QMessageBox.information(self, "Information", "Please generate the 2D correlation plot first.")
             return
         try:
             # Optionally, you might clear or prepare a separate 3D canvas if needed.
             color_map = self.status.get('colorMap', 'coolwarm')
-            self.corr.plot3D(colorMap=color_map)
+            self.correlation_model.plot3D(colorMap=color_map)
             logging.info("3D plot generated successfully.")
         except Exception as e:
             logging.exception("Error generating 3D plot.")

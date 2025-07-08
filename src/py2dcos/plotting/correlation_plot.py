@@ -7,40 +7,20 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from scipy.interpolate import RegularGridInterpolator
 import numpy as np
 import matplotlib as mpl
-import matplotlib.ticker as ticker
-import pandas as pd
 import plotly.graph_objs as go
-
+from py2dcos.core.correlation_model import CorrelationModel
 from py2dcos.core.locator import define_locator
 
 
-class TwoDCorrPlotter:
+class CorrelationPlotter:
 
-    def __init__(
-        self,
-        *,
-        syncr: pd.DataFrame,
-        asyncr: pd.DataFrame,
-        describe1: pd.DataFrame,
-        describe2: pd.DataFrame,
-        first1,
-        last1,
-        first2,
-        last2,
-        figure: Optional[Figure] = None,
-        canvas: Optional[FigureCanvasQTAgg] = None,
-    ):
-        self.syncr = syncr
-        self.asyncr = asyncr
-        self.describe1 = describe1
-        self.describe2 = describe2
-        self.first1 = first1
-        self.last1 = last1
-        self.first2 = first2
-        self.last2 = last2
-
-        self.figure: Figure = figure or plt.figure()
-        self.canvas_ = canvas
+    def __init__(self, model: CorrelationModel,
+                       figure: Figure|None = None,
+                       canvas: FigureCanvasQTAgg|None = None):
+        
+        self.model   = model
+        self.figure  = figure or plt.figure()
+        self.canvas  = canvas
 
     def plot(
         self,
@@ -56,10 +36,9 @@ class TwoDCorrPlotter:
         colorLinesIntensity: float = 0.6,
         shownGraph: str = "both",
         peaks_signs: str = "all",
-        canvas: bool = False,
     ) -> Figure:
 
-        self.figure.clf()
+        self.figure.clear()
 
         locator = define_locator(locator_choice, numOfContour)
 
@@ -69,7 +48,7 @@ class TwoDCorrPlotter:
 
         ## Synchronous Spectra
         if shownGraph == 'sync':
-            func = RegularGridInterpolator((self.syncr.index, self.syncr.columns), self.syncr.values)
+            func = RegularGridInterpolator((self.model.syncr.index, self.model.syncr.columns), self.model.syncr.values)
 
             def fmt(x, y):
                 z = np.take(func((x, y)), 0)
@@ -140,27 +119,27 @@ class TwoDCorrPlotter:
 
             # Plotting the information...
             # panels['upper'].plot(num_wave,spect)
-            num_wave = self.describe1.index
-            data_trans = self.describe1
-            panels['upper'].plot(num_wave, self.first1, 'r-', label='First', linewidth=linewidth)
+            num_wave = self.model.describe1.index
+            data_trans = self.model.describe1
+            panels['upper'].plot(num_wave, self.model.first1, 'r-', label='First', linewidth=linewidth)
             panels['upper'].plot(num_wave, data_trans['mean'], label='Mean', linewidth=linewidth)
             panels['upper'].fill_between(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            panels['upper'].plot(num_wave, self.last1, 'k-', label='Last', linewidth=linewidth)
+            panels['upper'].plot(num_wave, self.model.last1, 'k-', label='Last', linewidth=linewidth)
             panels['upper'].legend(loc='best', fontsize=fontsize)
             panels['upper'].set_xlim(num_wave.min(), num_wave.max())
 
-            num_wave = self.describe2.index
-            data_trans = self.describe2
-            panels['lefter'].plot(self.first2, num_wave, 'r-', label='First', linewidth=linewidth)
+            num_wave = self.model.describe2.index
+            data_trans = self.model.describe2
+            panels['lefter'].plot(self.model.first2, num_wave, 'r-', label='First', linewidth=linewidth)
             panels['lefter'].plot(data_trans['mean'], num_wave, label='Mean',
                                   linewidth=linewidth)  ## Attention! The data is inverted
             panels['lefter'].fill_betweenx(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            panels['lefter'].plot(self.last2, num_wave, 'k-', label='Last', linewidth=linewidth)
+            panels['lefter'].plot(self.model.last2, num_wave, 'k-', label='Last', linewidth=linewidth)
             panels['lefter'].legend(loc='best', fontsize=fontsize)
             panels['lefter'].set_ylim(num_wave.min(), num_wave.max())
 
             # Setting the central and lower panels
-            data = self.syncr.values
+            data = self.model.syncr.values
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
@@ -168,8 +147,8 @@ class TwoDCorrPlotter:
             elif peaks_signs == 'negative':
                 data[data > 0] = abs(data).min()
 
-            num_wave = self.syncr.index
-            num_wave2 = self.syncr.columns
+            num_wave = self.model.syncr.index
+            num_wave2 = self.model.syncr.columns
 
             panels['lower'].plot(num_wave, data.diagonal(0), linewidth=linewidth)
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
@@ -222,15 +201,15 @@ class TwoDCorrPlotter:
 
             # plt.tight_layout()
 
-            if canvas and self.canvas_ is not None:
-                self.canvas_.draw_idle()
+            if self.canvas is not None:
+                self.canvas.draw_idle()
 
             else:
                 plt.show()
 
 
         elif shownGraph == 'async':
-            func = RegularGridInterpolator((self.asyncr.columns, self.asyncr.index), self.asyncr.values)
+            func = RegularGridInterpolator((self.model.asyncr.columns, self.model.asyncr.index), self.model.asyncr.values)
 
             def fmt(x, y):
                 z = -np.take(func((x, y)), 0)
@@ -301,27 +280,27 @@ class TwoDCorrPlotter:
 
             # Plotting the information...
             # panels['upper'].plot(num_wave,spect)
-            num_wave = self.describe1.index
-            data_trans = self.describe1
-            panels['upper'].plot(num_wave, self.first1, 'r-', label='First', linewidth=linewidth)
+            num_wave = self.model.describe1.index
+            data_trans = self.model.describe1
+            panels['upper'].plot(num_wave, self.model.first1, 'r-', label='First', linewidth=linewidth)
             panels['upper'].plot(num_wave, data_trans['mean'], label='Mean', linewidth=linewidth)
             panels['upper'].fill_between(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            panels['upper'].plot(num_wave, self.last1, 'k-', label='Last', linewidth=linewidth)
+            panels['upper'].plot(num_wave, self.model.last1, 'k-', label='Last', linewidth=linewidth)
             panels['upper'].legend(loc='best', fontsize=fontsize)
             panels['upper'].set_xlim(num_wave.min(), num_wave.max())
 
-            num_wave = self.describe2.index
-            data_trans = self.describe2
-            panels['lefter'].plot(self.first2, num_wave, 'r-', label='First', linewidth=linewidth)
+            num_wave = self.model.describe2.index
+            data_trans = self.model.describe2
+            panels['lefter'].plot(self.model.first2, num_wave, 'r-', label='First', linewidth=linewidth)
             panels['lefter'].plot(data_trans['mean'], num_wave, label='Mean',
                                   linewidth=linewidth)  ## Attention! The data is inverted
             panels['lefter'].fill_betweenx(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            panels['lefter'].plot(self.last2, num_wave, 'k-', label='Last', linewidth=linewidth)
+            panels['lefter'].plot(self.model.last2, num_wave, 'k-', label='Last', linewidth=linewidth)
             panels['lefter'].legend(loc='best', fontsize=fontsize)
             panels['lefter'].set_ylim(num_wave.min(), num_wave.max())
 
             # Setting the central and lower panels
-            data = self.asyncr.values
+            data = self.model.asyncr.values
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
@@ -329,8 +308,8 @@ class TwoDCorrPlotter:
             elif peaks_signs == 'negative':
                 data[data > 0] = abs(data).min()
 
-            num_wave = self.asyncr.index
-            num_wave2 = self.asyncr.columns
+            num_wave = self.model.asyncr.index
+            num_wave2 = self.model.asyncr.columns
 
             # This test only plot the diagonal of sync 2D corr
             # diagonal = np.flip(np.fliplr(data).diagonal(0))
@@ -386,15 +365,15 @@ class TwoDCorrPlotter:
 
             # plt.tight_layout()
 
-            if canvas and self.canvas_ is not None:
-                self.canvas_.draw_idle()
+            if self.canvas is not None:
+                self.canvas.draw_idle()
             else:
                 plt.show()
 
 
         elif shownGraph == 'both':
-            func1 = RegularGridInterpolator((self.syncr.index, self.syncr.columns), self.syncr.values)
-            func2 = RegularGridInterpolator((self.asyncr.index, self.asyncr.columns), self.asyncr.values)
+            func1 = RegularGridInterpolator((self.model.syncr.index, self.model.syncr.columns), self.model.syncr.values)
+            func2 = RegularGridInterpolator((self.model.asyncr.index, self.model.asyncr.columns), self.model.asyncr.values)
 
             def fmt1(x, y):
                 z = np.take(func1((x, y)), 0)
@@ -493,36 +472,36 @@ class TwoDCorrPlotter:
 
             # Plotting the information...
             # panels['upper'].plot(num_wave,spect)
-            num_wave = self.describe1.index
-            data_trans = self.describe1
-            panels['upper'].plot(num_wave, self.first1, 'r-', label='First', linewidth=linewidth)
+            num_wave = self.model.describe1.index
+            data_trans = self.model.describe1
+            panels['upper'].plot(num_wave, self.model.first1, 'r-', label='First', linewidth=linewidth)
             panels['upper'].plot(num_wave, data_trans['mean'], label='Mean', linewidth=linewidth)
             panels['upper'].fill_between(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
             # panels['upper'].fill_between(num_wave, data_trans['25%'], data_trans['75%'], alpha=0.6, label='Q25-Q75')
-            panels['upper'].plot(num_wave, self.last1, 'k-', label='Last', linewidth=linewidth)
+            panels['upper'].plot(num_wave, self.model.last1, 'k-', label='Last', linewidth=linewidth)
             panels['upper'].legend(loc='best', fontsize=fontsize)
             panels['upper'].set_xlim(num_wave.min(), num_wave.max())
 
-            panels['upper_right'].plot(num_wave, self.first1, 'r-', label='First', linewidth=linewidth)
+            panels['upper_right'].plot(num_wave, self.model.first1, 'r-', label='First', linewidth=linewidth)
             panels['upper_right'].plot(num_wave, data_trans['mean'], label='Mean', linewidth=linewidth)
             panels['upper_right'].fill_between(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            panels['upper_right'].plot(num_wave, self.last1, 'k-', label='Last', linewidth=linewidth)
+            panels['upper_right'].plot(num_wave, self.model.last1, 'k-', label='Last', linewidth=linewidth)
             panels['upper_right'].legend(loc='best', fontsize=fontsize)
             panels['upper_right'].set_xlim(num_wave.min(), num_wave.max())
 
-            num_wave = self.describe2.index
-            data_trans = self.describe2
-            panels['lefter'].plot(self.first2, num_wave, 'r-', label='First', linewidth=linewidth)
+            num_wave = self.model.describe2.index
+            data_trans = self.model.describe2
+            panels['lefter'].plot(self.model.first2, num_wave, 'r-', label='First', linewidth=linewidth)
             panels['lefter'].plot(data_trans['mean'], num_wave, label='Mean',
                                   linewidth=linewidth)  ## Attention! The data is inverted
             panels['lefter'].fill_betweenx(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            panels['lefter'].plot(self.last2, num_wave, 'k-', label='Last', linewidth=linewidth)
+            panels['lefter'].plot(self.model.last2, num_wave, 'k-', label='Last', linewidth=linewidth)
             panels['lefter'].legend(loc='best', fontsize=fontsize)
             panels['lefter'].set_ylim(num_wave.min(), num_wave.max())
 
             # Setting the central and lower panels
 
-            data = self.syncr.values
+            data = self.model.syncr.values
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
@@ -530,8 +509,8 @@ class TwoDCorrPlotter:
             elif peaks_signs == 'negative':
                 data[data > 0] = abs(data).min()
 
-            num_wave = self.syncr.index
-            num_wave2 = self.syncr.columns
+            num_wave = self.model.syncr.index
+            num_wave2 = self.model.syncr.columns
             # This test only plot the diagonal of sync 2D corr
             panels['lower'].plot(num_wave, data.diagonal(0), linewidth=linewidth)
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
@@ -581,7 +560,7 @@ class TwoDCorrPlotter:
             panels['central'].format_coord = fmt1
 
             # Setting the right and lower_right panels
-            data = self.asyncr.values
+            data = self.model.asyncr.values
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
@@ -589,8 +568,8 @@ class TwoDCorrPlotter:
             elif peaks_signs == 'negative':
                 data[data > 0] = -abs(data).min()
 
-            num_wave = self.asyncr.index
-            num_wave2 = self.asyncr.columns
+            num_wave = self.model.asyncr.index
+            num_wave2 = self.model.asyncr.columns
 
             # This test only plot the diagonal of sync 2D corr
             panels['lower_right'].plot(num_wave, np.flip(np.fliplr(data).diagonal(0)))
@@ -641,15 +620,15 @@ class TwoDCorrPlotter:
             # gs.subplots_adjust(left = 0.1, bottom = 0.1, right = 0.9, top = 0.9, wspace=0.4, hspace=0.4)
 
             # plt.tight_layout()
-            if canvas and self.canvas_ is not None:
-                self.canvas_.draw_idle()
+            if self.canvas is not None:
+                self.canvas.draw_idle()
 
             else:
                 plt.show()
 
 
     def plot3d(self, *, color_map: str = "coolwarm"):
-        fig = go.Figure(data=[go.Surface(x=self.syncr.index, y=self.syncr.columns, z=self.syncr.values)])
+        fig = go.Figure(data=[go.Surface(x=self.model.syncr.index, y=self.model.syncr.columns, z=self.model.syncr.values)])
 
         fig.update_layout(title='Synchronous Spectra',
                           margin=dict(l=65, r=50, b=65, t=90))
@@ -657,7 +636,7 @@ class TwoDCorrPlotter:
         fig.show()
 
         fig2 = go.Figure(
-            data=[go.Surface(x=self.asyncr.index, y=self.asyncr.columns, z=self.asyncr.values)])
+            data=[go.Surface(x=self.model.asyncr.index, y=self.model.asyncr.columns, z=self.model.asyncr.values)])
 
         fig2.update_layout(title='Asynchronous Spectra',
                            margin=dict(l=65, r=50, b=65, t=90))

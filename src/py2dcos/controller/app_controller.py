@@ -5,14 +5,14 @@ from py2dcos.core.validators import (
     UnsupportedExtensionError,
     UnsupportedMethodError,
 )
-from py2dcos.core.adapter import CorrelationAdapter as twoDspecies
+from py2dcos.core.correlation_model import CorrelationModel as twoDspecies
 
 class AppController:
     def __init__(self):
         self.prev_state = None
         self.correlation_obj = None
 
-    def calculate_correlation(self, file1, file2='', status=''):
+    def build_model(self, file1, file2='', status=''):
         if not file2 or isinstance(file2, str):
             file2 = file1
 

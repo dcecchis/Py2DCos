@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from py2dcos.core.correlation import TwoDCorrelation
 from py2dcos.core.io import reader, checkHeader
-from py2dcos.plotting.correlation_plot import TwoDCorrPlotter
+from py2dcos.plotting.correlation_plot import CorrelationPlotter
 from py2dcos.core.preprocessing import PCAProcessor
 from py2dcos.core.filters import apply_gaussian_filter, apply_node_attenuation
 
 
-class CorrelationAdapter:
+class CorrelationModel:
 
     def __init__(
         self,
@@ -78,10 +78,9 @@ class CorrelationAdapter:
     def asyn(self, method: str = "HT"):
         self.asyncr = self.core.async_(method=method)
 
-
+    """
     def plot(self, *, figure=None, canvas: bool = False, **plot_kwargs):
-        """Return a Matplotlib Figure with the requested 2-D correlation plot."""
-        plotter = TwoDCorrPlotter(
+        plotter = CorrelationPlotter(
             syncr=self.syncr,
             asyncr=self.asyncr,
             describe1=self.describe1,
@@ -94,3 +93,5 @@ class CorrelationAdapter:
             canvas=self.canvas_ if canvas else None,
         )
         return plotter.plot(canvas=canvas, **plot_kwargs)
+
+    """
