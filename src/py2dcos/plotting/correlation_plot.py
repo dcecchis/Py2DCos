@@ -18,6 +18,7 @@ class CorrelationPlotter:
                        figure: Figure|None = None,
                        canvas: FigureCanvasQTAgg|None = None):
         
+        # store model and optional figure/canvas for GUI integration
         self.model   = model
         self.figure  = figure or plt.figure()
         self.canvas  = canvas
@@ -37,20 +38,20 @@ class CorrelationPlotter:
         shownGraph: str = "both",
         peaks_signs: str = "all",
     ) -> Figure:
-
+        # clear existing figure before drawing
         self.figure.clear()
-
+        # pick tick locator based on user choice
         locator = define_locator(locator_choice, numOfContour)
-
         fontsize = 8
         linewidth = 0.9
         self.figure.set_facecolor("#f0f0f0")
 
-        ## Synchronous Spectra
         if shownGraph == 'sync':
+            # synchronous 2D correlation plot
             func = RegularGridInterpolator((self.model.syncr.index, self.model.syncr.columns), self.model.syncr.values)
 
             def fmt(x, y):
+                # show x,y,z on hover
                 z = np.take(func((x, y)), 0)
                 return 'x={x:.2f}  y={y:.2f}  z={z:.5f}'.format(x=x, y=y, z=z)
 
@@ -65,6 +66,7 @@ class CorrelationPlotter:
 
             panel_tick_params = {clave: {} for clave in keys}
             for clave in keys:
+                # set tick/label visibility for each panel
                 for param in params:
                     if param in ['axis', 'which']:
                         panel_tick_params[clave][param] = 'both'
@@ -72,10 +74,9 @@ class CorrelationPlotter:
                         panel_tick_params[clave][param] = True if clave in ['central'] or param in ['bottom', 'top',
                                                                                                     'right',
                                                                                                     'left'] else False
-
             for clave in ['upper', 'lower']:
                 panel_tick_params[clave]['labelright'] = True  # labels left is on in upper and lower panels
-
+            # adjust specific label placements
             panel_tick_params['lefter']['labelbottom'] = True  # labels bottom is on in lefter panel
             panel_tick_params['lefter']['labeltop'] = True
             panel_tick_params['lefter']['labelleft'] = True
@@ -88,7 +89,7 @@ class CorrelationPlotter:
             panel_tick_params['central']['labelleft'] = False
 
             panels = {}
-            # Creating the panels. This is done just one
+            # Creating the panels. This is done just once
             for i, clave in enumerate(keys):
                 j, k = indices[i]
                 if indices[i] not in [[1, 2], [1, 1], [1, 3]]:
@@ -154,7 +155,7 @@ class CorrelationPlotter:
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
             panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
-            # breakpoint()    # for debugging
+            # central contour and imshow
             zmin = data.min()
             zmax = data.max()
 
@@ -169,7 +170,6 @@ class CorrelationPlotter:
 
             panels['central'].contour(num_wave, num_wave2, data, locator=locator, cmap=None, vmin=zmin, vmax=zmax,
                                       colors=colorLines, alpha=colorLinesIntensity, linewidths=linewidth)
-            # panels['central'].contourf(num_wave, num_wave2, data, numOfContour, cmap=colorMap, alpha=colorMapIntensity)
 
             caxA = plt.axes(self.figure.add_subplot(gs[1, 4]))
             cbA = plt.colorbar(imA, cax=caxA)
@@ -191,15 +191,11 @@ class CorrelationPlotter:
 
             panels['central'].format_coord = fmt
 
-            # plt.xlabel("X axis")
-            # plt.ylabel("Y axis")
             panels['central'].set_xlim(num_wave.min(), num_wave.max())
             panels['central'].set_ylim(num_wave2.min(), num_wave2.max())
 
             if xAxis == "decreasing":
                 panels['central'].invert_xaxis()
-
-            # plt.tight_layout()
 
             if self.canvas is not None:
                 self.canvas.draw_idle()
@@ -209,6 +205,7 @@ class CorrelationPlotter:
 
 
         elif shownGraph == 'async':
+            # asynchronous 2D correlation plot
             func = RegularGridInterpolator((self.model.asyncr.columns, self.model.asyncr.index), self.model.asyncr.values)
 
             def fmt(x, y):
@@ -311,16 +308,10 @@ class CorrelationPlotter:
             num_wave = self.model.asyncr.index
             num_wave2 = self.model.asyncr.columns
 
-            # This test only plot the diagonal of sync 2D corr
-            # diagonal = np.flip(np.fliplr(data).diagonal(0))
-            # .setflags(write=True)
-            # diagonal[diagonal < 1E-15] = 0.
-            # panels['lower'].plot(num_wave, diagonal)
             panels['lower'].plot(num_wave, np.flip(np.fliplr(data).diagonal(0)), linewidth=linewidth)
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
             panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
-            # breakpoint()    # for debugging
             zmin = data.min()
             zmax = data.max()
 
@@ -333,7 +324,6 @@ class CorrelationPlotter:
             imA = panels['central'].imshow(data[::-1, ::], alpha=colorMapIntensity, aspect="auto", **imshow_kwargs)
             panels['central'].contour(num_wave, num_wave2, data, locator=locator, cmap=None, vmin=zmin, vmax=zmax,
                                       colors=colorLines, alpha=colorLinesIntensity, linewidths=linewidth)
-            # panels['central'].contourf(num_wave, num_wave2, data, numOfContour, cmap=colorMap, alpha=colorMapIntensity)
 
             caxA = plt.axes(self.figure.add_subplot(gs[1, 4]))
             cbA = plt.colorbar(imA, cax=caxA)
@@ -355,15 +345,11 @@ class CorrelationPlotter:
 
             panels['central'].format_coord = fmt
 
-            # plt.xlabel("X axis")
-            # plt.ylabel("Y axis")
             panels['central'].set_xlim(num_wave.min(), num_wave.max())
             panels['central'].set_ylim(num_wave2.min(), num_wave2.max())
 
             if xAxis == "decreasing":
                 panels['central'].invert_xaxis()
-
-            # plt.tight_layout()
 
             if self.canvas is not None:
                 self.canvas.draw_idle()
@@ -372,6 +358,7 @@ class CorrelationPlotter:
 
 
         elif shownGraph == 'both':
+            # combined sync and async 2D plots and colorbars
             func1 = RegularGridInterpolator((self.model.syncr.index, self.model.syncr.columns), self.model.syncr.values)
             func2 = RegularGridInterpolator((self.model.asyncr.index, self.model.asyncr.columns), self.model.asyncr.values)
 
@@ -428,7 +415,6 @@ class CorrelationPlotter:
                 panel_tick_params['central'][label] = False  # all labels are off in central panel
                 panel_tick_params['right'][label] = False  # all labels are off in right panel
             panel_tick_params['central']['labelright'] = False  # all labels are off in central panel
-            # panel_tick_params['central']['labelright'] = False  # labels right is off in central panel
 
             panel_tick_params['right']['labelleft'] = False  # labels left is off in right panel
 
@@ -468,16 +454,13 @@ class CorrelationPlotter:
 
             # Setting particularly the lefter panel
             panels['lefter'].invert_xaxis()
-            # panels['lefter'].invert_yaxis()
 
             # Plotting the information...
-            # panels['upper'].plot(num_wave,spect)
             num_wave = self.model.describe1.index
             data_trans = self.model.describe1
             panels['upper'].plot(num_wave, self.model.first1, 'r-', label='First', linewidth=linewidth)
             panels['upper'].plot(num_wave, data_trans['mean'], label='Mean', linewidth=linewidth)
             panels['upper'].fill_between(num_wave, data_trans['min'], data_trans['max'], alpha=0.3)
-            # panels['upper'].fill_between(num_wave, data_trans['25%'], data_trans['75%'], alpha=0.6, label='Q25-Q75')
             panels['upper'].plot(num_wave, self.model.last1, 'k-', label='Last', linewidth=linewidth)
             panels['upper'].legend(loc='best', fontsize=fontsize)
             panels['upper'].set_xlim(num_wave.min(), num_wave.max())
@@ -516,7 +499,6 @@ class CorrelationPlotter:
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
             panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
-            # breakpoint()    # for debugging
             zmin = data.min()
             zmax = data.max()
 
@@ -528,8 +510,7 @@ class CorrelationPlotter:
             }
             panels['central'].contour(num_wave, num_wave2, data, locator=locator, cmap=None, vmin=zmin, vmax=zmax,
                                       colors=colorLines, alpha=colorLinesIntensity, linewidths=linewidth)
-            # panels['central'].contourf(num_wave, num_wave2, data, numOfContour, cmap=colorMap, alpha=colorMapIntensity)
-            # aspectIm = 4.8/5
+
             aspectIm = "auto"
             imS = panels['central'].imshow(data[::-1, ::], alpha=colorMapIntensity, aspect=aspectIm, **imshow_kwargs)
             caxS = plt.subplot(cbar_gs['central'])
@@ -616,10 +597,6 @@ class CorrelationPlotter:
             if xAxis == 'decreasing':
                 panels['central'].invert_xaxis()
 
-            # gs.tight_layout(self.figure)
-            # gs.subplots_adjust(left = 0.1, bottom = 0.1, right = 0.9, top = 0.9, wspace=0.4, hspace=0.4)
-
-            # plt.tight_layout()
             if self.canvas is not None:
                 self.canvas.draw_idle()
 
@@ -628,6 +605,7 @@ class CorrelationPlotter:
 
 
     def plot3d(self, *, color_map: str = "coolwarm"):
+        # render 3D surface plots via Plotly
         fig = go.Figure(data=[go.Surface(x=self.model.syncr.index, y=self.model.syncr.columns, z=self.model.syncr.values)])
 
         fig.update_layout(title='Synchronous Spectra',

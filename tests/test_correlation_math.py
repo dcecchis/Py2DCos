@@ -1,4 +1,3 @@
-# tests/test_correlation_math.py
 import numpy as np
 import pandas as pd
 import pytest
@@ -14,9 +13,10 @@ def _rand_spec(n_rows=40, n_cols=6, seed=0):
     return pd.DataFrame(data, index=index, columns=cols)
 
 
-# ---------- HT ----------------------------------------------------------------
+# Hilbert Transform tests
 
 def test_sync_ht_symmetry_and_shape():
+    # sync HT output must be square and symmetric
     spec = _rand_spec()
     corr = TwoDCorrelation(spec)
     syn = corr.sync(method="HT")
@@ -25,6 +25,7 @@ def test_sync_ht_symmetry_and_shape():
 
 
 def test_async_ht_skewsym_and_diag_zero():
+    # async HT output must be skew-symmetric with zero diagonal
     spec = _rand_spec()
     corr = TwoDCorrelation(spec)
     asyn = corr.async_(method="HT")
@@ -34,10 +35,11 @@ def test_async_ht_skewsym_and_diag_zero():
     assert np.allclose(asyn.values + asyn.values.T, 0.0, atol=1e-12)
 
 
-# ---------- cross-spectra shape check (HT & FFT) ------------------------------
+# cross-spectra shape checks for both methods
 
 @pytest.mark.parametrize("method", ["HT", "FFT"])
 def test_sync_cross_shapes(method):
+    # ensure sync cross-correlation handles different row counts
     spec1 = _rand_spec(n_rows=30, seed=1)
     spec2 = _rand_spec(n_rows=45, seed=2)
     corr = TwoDCorrelation(spec1, spec2)
@@ -45,9 +47,9 @@ def test_sync_cross_shapes(method):
     assert syn.shape == (30, 45)
 
 
-# ---------- dimension-mismatch guard ------------------------------------------
-
+# dimension-mismatch guard
 def test_mismatched_column_count_raises():
+    # mismatched column counts should raise ValueError
     spec1 = _rand_spec(n_cols=5, seed=3)
     spec2 = _rand_spec(n_cols=6, seed=4)
     corr = TwoDCorrelation(spec1, spec2)

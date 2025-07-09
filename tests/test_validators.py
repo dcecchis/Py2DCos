@@ -1,4 +1,3 @@
-# tests/test_validators.py
 import pytest
 
 from py2dcos.core.validators import (
@@ -10,22 +9,21 @@ from py2dcos.core.validators import (
     InvalidExcelFormatError,
 )
 
-# ---------- validate_method --------------------------------------------------
-
+# validate_method tests
 
 def test_validate_method_accepts_ht():
-    # Should not raise for the only supported method
+    # HT is supported and should not raise
     validate_method("HT")
 
 
 @pytest.mark.parametrize("bad_method", ["FFT", "DWT", "", None])
 def test_validate_method_rejects_unsupported(bad_method):
+    # unsupported methods must trigger an error
     with pytest.raises(UnsupportedMethodError):
         validate_method(bad_method)
 
 
-# ---------- validate_extension -----------------------------------------------
-
+# validate_extension tests
 
 @pytest.mark.parametrize(
     "ext1, ext2",
@@ -39,7 +37,7 @@ def test_validate_method_rejects_unsupported(bad_method):
     ],
 )
 def test_validate_extension_accepts_known(ext1, ext2):
-    # Should run without exception for any allowed combination
+    # known extensions should pass without exception
     validate_extension(ext1, ext2)
 
 
@@ -54,12 +52,12 @@ def test_validate_extension_accepts_known(ext1, ext2):
     ],
 )
 def test_validate_extension_rejects_unknown(ext1, ext2):
+    # unknown extensions should raise an error
     with pytest.raises(UnsupportedExtensionError):
         validate_extension(ext1, ext2)
 
 
-# ---------- validate_special_case --------------------------------------------
-
+# validate_special_case tests
 
 @pytest.mark.parametrize(
     "column, row",
@@ -71,6 +69,7 @@ def test_validate_extension_rejects_unknown(ext1, ext2):
     ],
 )
 def test_validate_special_case_accepts_well_formed(column, row):
+    # proper Excel range strings should pass
     validate_special_case(column, row)
 
 
@@ -86,5 +85,6 @@ def test_validate_special_case_accepts_well_formed(column, row):
     ],
 )
 def test_validate_special_case_rejects_bad_input(column, row):
+    # malformed inputs must raise an error
     with pytest.raises(InvalidExcelFormatError):
         validate_special_case(column, row)

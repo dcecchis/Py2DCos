@@ -9,7 +9,7 @@ from PyQt5.QtCore import Qt, QSize
 from PyQt5 import QtGui
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from py2dcos.gui.SecondWindow import Ui_SecondWindow
+from py2dcos.gui.second_window import Ui_SecondWindow
 from py2dcos.config.resources import color_list, cmap_list, initial_status, locators
 from py2dcos.controller.app_controller import AppController
 from py2dcos.plotting.correlation_plot import CorrelationPlotter

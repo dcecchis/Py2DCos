@@ -17,6 +17,8 @@ from py2dcos.core.locator import define_locator
     ],
 )
 def test_define_locator_returns_correct_type_and_levels(choice, levels, expected_cls, attr):
+    # define_locator should return the right Locator class and tick count
     loc = define_locator(choice, levels=levels)
     assert isinstance(loc, expected_cls)
+    # ensure the number of levels matches the passed parameter
     assert getattr(loc, attr) == levels

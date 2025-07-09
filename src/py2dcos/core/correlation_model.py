@@ -20,10 +20,12 @@ class CorrelationModel:
         node_attenuation: bool = False,
     ):
 
+        # allow single filename to serve as both spectra for homocorrelation
         if not filename2:
             filename2 = filename1.copy()
 
         def _normalise(path_or_list):
+            # ensure we have [path, ext] format
             if isinstance(path_or_list, str):
                 return [path_or_list, path_or_list.split(".")[-2]]
             return path_or_list
@@ -31,24 +33,30 @@ class CorrelationModel:
         filename1 = _normalise(filename1)
         filename2 = _normalise(filename2)
 
+        # read and clean headers from files
         spec1 = checkHeader(reader(filename1))
         spec2 = checkHeader(reader(filename2))
 
+        # apply PCA-based reconstruction if requested
         pca = PCAProcessor()
         spec1 = pca.apply(spec1, n_components=reconstruction_comps, report_filename="pca_report1.txt")
         spec2 = pca.apply(spec2, n_components=reconstruction_comps, report_filename="pca_report2.txt")
 
+        # apply Gaussian smoothing
         if sigma_gaussian > 0:
             spec1 = apply_gaussian_filter(spec1, sigma=sigma_gaussian)
             spec2 = apply_gaussian_filter(spec2, sigma=sigma_gaussian)
 
+        # apply node attenuation filter
         if node_attenuation:
             spec1 = apply_node_attenuation(spec1)
             spec2 = apply_node_attenuation(spec2)
 
+        # precompute descriptive stats for reference options
         desc1 = spec1.T.describe().T
         desc2 = spec2.T.describe().T
 
+        # map reference key to subtraction operation
         ref_map = {
             "zero":  (spec1, spec2),
             "mean":  (spec1.sub(desc1["mean"], axis=0), spec2.sub(desc2["mean"], axis=0)),
@@ -59,20 +67,24 @@ class CorrelationModel:
         }
         spec1_, spec2_ = ref_map.get(ref, (spec1, spec2))
 
+        # store stats and boundary spectra for use elsewhere
         self.describe1 = desc1
         self.describe2 = desc2
         self.first1, self.last1 = spec1[1], spec1.iloc[:, -2]
         self.first2, self.last2 = spec2[1], spec2.iloc[:, -2]
 
+        # create core correlation object and compute maps
         self.core = TwoDCorrelation(spec1_, spec2_)
         self.syncr = self.core.sync(method=method)
         self.asyncr = self.core.async_(method=method)
 
-        # Canvas can be injected later by the GUI
+        # placeholder for GUI canvas injection
         self.canvas_: None | object = None
 
     def syn(self, method: str = "HT"):
+        # recompute synchronous correlation
         self.syncr = self.core.sync(method=method)
 
     def asyn(self, method: str = "HT"):
+        # recompute asynchronous correlation
         self.asyncr = self.core.async_(method=method)

@@ -1,3 +1,4 @@
+# default GUI and processing settings
 initial_status = {
             'sigmaGaussian': 0,
             'node_attenuation': False,
@@ -20,11 +21,13 @@ initial_status = {
             'peaks_signs': 'all'
         }
 
+# supported line colors for plotting
 color_list = ["navy", 'black', "white", "red", "lime", "blue", "yellow", "maroon", "olive",
               "green", "teal"]
-# List of cmap supported
+# supported Matplotlib colormaps
 cmap_list = ['bwr', 'PiYG', 'PRGn', 'BrBG', 'PuOr', 'RdGy', 'RdBu', 'RdYlBu',
              'RdYlGn', 'Spectral', 'coolwarm', 'seismic']
 
+# available tick locator options
 locators = ['linear', 'maxN', 'log']
 

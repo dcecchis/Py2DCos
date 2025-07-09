@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 class PCAProcessor:
     def __init__(self):
+        # no initialization needed
         pass
     
     def apply(self, data, n_components,
@@ -12,30 +13,31 @@ class PCAProcessor:
                                  plot_correlogram=True, correlogram_filename='correlograma.png',
                                  plot_scores=True, scores_filename='scores.png'):
 
+        # return copy if no components requested
         if n_components <= 0:
-            # No reconstruction requested – behave like the old code.
             return data.copy()
 
 
-        # Center the data by subtracting column means.
+        # center data by subtracting mean per column
         data_mean = data.mean()
         data_centered = data - data_mean
 
+        # perform PCA
         pca = PCA(n_components=n_components)
         pca_result = pca.fit_transform(data_centered)
 
-        # Reconstruct the data using the retained components.
+        # rebuild DataFrame from inverse transform
         reconstructed = pca.inverse_transform(pca_result)
         reconstructed_df = pd.DataFrame(reconstructed, index=data.index, columns=data.columns)
 
-        # Compute the correlation matrix of the reconstructed data.
+        # compute correlation matrix for correlogram
         correlation_matrix = np.corrcoef(reconstructed_df.T)
 
-        # Calculate explained variance statistics.
+        # calculate explained and cumulative variance
         explained_variance = pca.explained_variance_ratio_ * 100  # as percentages
         cumulative_variance = np.cumsum(explained_variance)
 
-        # Generate a textual report.
+        # build textual report
         report_lines = []
         report_lines.append("PCA Report")
         report_lines.append("=" * 40)
@@ -59,7 +61,7 @@ class PCAProcessor:
             f.write(report_text)
         print(f"PCA report saved to {report_filename}")
 
-        # Plot the correlogram (correlation matrix) if requested.
+        # plot correlogram if enabled
         if plot_correlogram:
             plt.figure(figsize=(8, 6))
             plt.imshow(correlation_matrix, cmap='coolwarm', interpolation='nearest')
@@ -75,19 +77,18 @@ class PCAProcessor:
                 plt.show()
             plt.close()
 
-        # Plot the PCA scores if requested and if at least 2 components are available.
+        # plot PCA scores if enabled and components ≥2
         if plot_scores:
             if n_components < 2:
                 print("PCA scores plot not generated: need at least 2 components.")
             else:
                 fig, ax = plt.subplots(figsize=(8, 6))
-
-                # Plot the scores.
                 ax.scatter(pca_result[:, 0], pca_result[:, 1], color='blue', marker='o')
                 ax.set_xlabel(f"PC1 ({explained_variance[0]:.1f}% var)")
                 ax.set_ylabel(f"PC2 ({explained_variance[1]:.1f}% var)")
                 ax.set_title("PCA Scores Scatter Plot")
 
+                # move spines to zero for cross-axis reference
                 ax.spines['left'].set_position('zero')
                 ax.spines['bottom'].set_position('zero')
                 ax.spines['right'].set_color('none')
@@ -96,6 +97,7 @@ class PCAProcessor:
                 # Add grid for clarity
                 ax.grid(True, linestyle='--', alpha=0.5)
 
+                # annotate points beyond 90th percentile
                 threshold = np.percentile(np.abs(pca_result[:, 0]), 90)  # for example, top 10% in PC1
                 for i, wavenumber in enumerate(data.index):
                     if abs(pca_result[i, 0]) > threshold or abs(pca_result[i, 1]) > threshold:
@@ -110,9 +112,9 @@ class PCAProcessor:
 
                 plt.tight_layout()
                 if scores_filename:
-                    plt.savefig(scores_filename)
+                    plt.savefig(scores_filename) # save scores plot
                     print(f"PCA scores plot saved as {scores_filename}")
 
                 plt.close()
 
-        return reconstructed_df
+        return reconstructed_df  # return reconstructed data
