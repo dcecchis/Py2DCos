@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt, QSize
 from PyQt5 import QtGui
+from PyQt5.QtWidgets import QWidget, QScrollArea
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from py2dcos.gui.second_window import Ui_SecondWindow
@@ -57,11 +58,18 @@ class MainWindow(QMainWindow):
 
     def create_left_layout(self):
         self.left_layout = QVBoxLayout()
-        self.main_layout.addLayout(self.left_layout, 1)
         self.left_layout.setAlignment(Qt.AlignTop)
+        left_container = QWidget()
+        left_container.setLayout(self.left_layout)
+        scroll = QScrollArea()
+        scroll.setWidget(left_container)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        scroll.setMinimumWidth(350)
+        self.main_layout.addWidget(scroll, 1)
         spacer = QSpacerItem(20, 40, QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.create_correlation_type_section(spacer)
-        #self.create_calculation_method_section(spacer)
         self.create_input_files_section(spacer)
         self.create_data_treatment_section(spacer)
         self.create_reference_spectra_section(spacer)
@@ -80,11 +88,13 @@ class MainWindow(QMainWindow):
         self.right_layout.addWidget(self.canvas)
 
         self.toolbar_layout = QHBoxLayout()
-        self.right_layout.addLayout(self.toolbar_layout)
-        self.toolbar = NavigationToolbar(self.canvas, None)
+        self.toolbar_layout.addStretch(1)
+        self.toolbar = NavigationToolbar(self.canvas, parent=self)
+        self.toolbar_layout.addWidget(self.toolbar)
         self.tridimensional_projection_button = QPushButton("Show 3D Plot")
-        self.toolbar_layout.addWidget(self.toolbar, alignment=Qt.AlignRight)
-        self.toolbar_layout.addWidget(self.tridimensional_projection_button, alignment=Qt.AlignLeft)
+        self.toolbar_layout.addWidget(self.tridimensional_projection_button)
+        self.toolbar_layout.addStretch(1)
+        self.right_layout.addLayout(self.toolbar_layout)
 
         self.main_layout.addLayout(self.right_layout, 5)
 
