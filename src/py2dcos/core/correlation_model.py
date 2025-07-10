@@ -88,3 +88,7 @@ class CorrelationModel:
     def asyn(self, method: str = "HT"):
         # recompute asynchronous correlation
         self.asyncr = self.core.async_(method=method)
+
+    def is_positive(self) -> bool:
+        # Return True iff all values in both maps are strictly > 0.
+        return (self.syncr.values > 0).all() and (self.asyncr.values > 0).all()

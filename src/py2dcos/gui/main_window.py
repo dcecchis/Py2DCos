@@ -1,5 +1,7 @@
 import logging
 import matplotlib.pyplot as plt
+from dataclasses import asdict
+from enum import Enum
 from PyQt5.QtWidgets import (
     QMainWindow, QHBoxLayout, QVBoxLayout, QGridLayout, QWidget,
     QPushButton, QLabel, QRadioButton, QSizePolicy, QMessageBox, QSlider,
@@ -11,7 +13,10 @@ from PyQt5.QtWidgets import QWidget, QScrollArea
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from py2dcos.gui.second_window import Ui_SecondWindow
-from py2dcos.config.resources import color_list, cmap_list, initial_status, locators
+from py2dcos.config.resources import (
+    GuiState, COLOR_LIST, CMAP_LIST, LOCATOR_CHOICES,
+    CorrType, RefSpectra, Diagonal, AxisDirection, ShownGraph, PeaksSigns,
+)
 from py2dcos.controller.app_controller import AppController
 from py2dcos.plotting.correlation_plot import CorrelationPlotter
 
@@ -45,7 +50,12 @@ class MainWindow(QMainWindow):
         self.filename2 = ""
         self.format1 = ""
         self.format2 = ""
-        self.status = initial_status.copy()
+        self.state = GuiState() 
+
+    def _set_state(self, **kw):
+        for k, v in kw.items():
+            setattr(self.state, k, v)
+            logging.info("Updated %s: %s", k, v)
 
     def setup_ui(self):
         # central widget, layouts and UI components
@@ -237,7 +247,7 @@ class MainWindow(QMainWindow):
         self.graph_settings_grid.addWidget(self.locator_label, 1, 0)
         self.locator_box = QComboBox()
         self.locator_box.setFont(self.get_font_text())
-        for locator in locators:
+        for locator in LOCATOR_CHOICES:
             self.locator_box.addItem(locator)
         self.graph_settings_grid.addWidget(self.locator_box, 1, 1)
         # Color map combo box
@@ -246,7 +256,7 @@ class MainWindow(QMainWindow):
         self.graph_settings_grid.addWidget(self.color_map_label, 2, 0)
         self.color_map_box = QComboBox()
         self.color_map_box.setFont(self.get_font_text())
-        for cmap in cmap_list:
+        for cmap in CMAP_LIST:
             self.color_map_box.addItem(cmap)
         self.graph_settings_grid.addWidget(self.color_map_box, 2, 1)
         # Contour lines color combo box
@@ -255,7 +265,7 @@ class MainWindow(QMainWindow):
         self.graph_settings_grid.addWidget(self.contour_lines_color_label, 3, 0)
         self.contour_lines_color_box = QComboBox()
         self.contour_lines_color_box.setFont(self.get_font_text())
-        for color in color_list:
+        for color in COLOR_LIST:
             self.contour_lines_color_box.addItem(color)
         self.graph_settings_grid.addWidget(self.contour_lines_color_box, 3, 1)
         # Color intensity slider
@@ -462,7 +472,6 @@ class MainWindow(QMainWindow):
     def setup_defaults(self):
         # Set default state for controls
         self.homo_corr_button.setChecked(True)
-        # self.hilbert_transform_button.setChecked(True)
         self.initial_button.setChecked(True)
         self.locator_box.setCurrentText("linear")
         self.color_map_box.setCurrentText("coolwarm")
@@ -472,7 +481,6 @@ class MainWindow(QMainWindow):
         self.decreasing_x_button.setChecked(True)
         self.both_graph_option.setChecked(True)
         self.all_signs_option.setChecked(True)
-        # self.status["figure"] = self.figure
 
     def upload_file(self):
         try:
@@ -515,45 +523,54 @@ class MainWindow(QMainWindow):
         self.second_window.show()
 
     def update_slider_labels(self):
-        slider_map = {
-            self.gaussian_filter_slider: ("Gaussian Smoothening: ", self.gaussian_filter_label, 'sigmaGaussian', 1),
-            self.num_of_contours_slider: ("Number of Contours: ", self.num_of_contours_label, 'numOfContour', 1),
-            self.color_intensity_slider: ("Color Intensity: ", self.color_intensity_label, 'colorMapIntensity', 100.),
-            self.contour_lines_intensity_slider: ("Contour Lines Intensity: ", self.contour_lines_intensity_label, 'colorLinesIntensity', 100.)
+        slider_cfg = {
+            # widget : (label_widget, state_field, divisor)
+            self.gaussian_filter_slider:      (self.gaussian_filter_label, 'sigma_gaussian',            1),
+            self.num_of_contours_slider:      (self.num_of_contours_label, 'num_of_contours',           1),
+            self.color_intensity_slider:      (self.color_intensity_label, 'color_map_intensity',     100),
+            self.contour_lines_intensity_slider: (
+                self.contour_lines_intensity_label, 'contour_lines_intensity', 100
+            ),
         }
+
         sender = self.sender()
-        if sender in slider_map:
-            label_text, label_widget, status_key, divisor = slider_map[sender]
-            value = sender.value() / divisor
-            if status_key == 'numOfContour':
-                value = int(value)
-            label_widget.setText(f"{label_text}{sender.value()}")
-            self.status[status_key] = value
-            logging.info(f"Updated {status_key}: {value} (from {label_text})")
+        if sender not in slider_cfg:
+            return
+
+        label_widget, field, divisor = slider_cfg[sender]
+        raw_val = sender.value()
+        value   = int(raw_val / divisor) if field == 'num_of_contours' else raw_val / divisor
+
+        # Update text
+        base_text = label_widget.text().split(':')[0]  # keep left part
+        label_widget.setText(f"{base_text}: {raw_val}")
+
+        # Update state
+        self._set_state(**{field: value})
 
     def change_sliders(self):
-        
+        """
+        Called on sliderReleased.  Update state + live-redraw if plot exists.
+        """
         self.update_slider_labels()
         if not self.plot_ready:
             return
-        
-        #self.plotter.figure.clear()
-        plot_status = self.get_plot_args()
-        self.plotter.plot(**plot_status)
+
+        self.plotter.plot(**self.get_plot_args())
         self.canvas.draw()
         logging.info("Updated figure with new slider values.")
 
     def change_status(self):
         sender = self.sender()
         recalc_required = False
-        matched = False  # debugging tool
+        matched = False
 
         recalc_controls = {
             self.gaussian_filter_slider,
             self.node_attenuation_checkbox,
             self.corr_type_group,
             self.pca_reconstruction_components_combobox,
-            self.reference_spectra_group
+            self.reference_spectra_group,
         }
 
         for control, func in self.get_update_functions().items():
@@ -572,7 +589,7 @@ class MainWindow(QMainWindow):
                 break
 
         if not matched:
-            logging.warning(f"[change_status] No update function matched for sender: {repr(sender)}")
+            logging.warning("[change_status] No update function matched for sender: %r", sender)
 
         if not self.plot_ready:
             return
@@ -580,145 +597,155 @@ class MainWindow(QMainWindow):
         if recalc_required:
             self.recalculate_correlation()
 
-        plot_status = self.get_plot_args()
-        #self.figure.clear()
-        self.plotter.plot(**plot_status)
+        self.plotter.plot(**self.get_plot_args())
         self.canvas.draw()
 
 
     def get_update_functions(self):
         return {
             self.node_attenuation_checkbox: self.update_node_att_bool,
-            self.corr_type_group: self.update_correlation_type,
+            self.corr_type_group:           self.update_correlation_type,
             self.pca_reconstruction_components_combobox: self.update_pca_reconstruction_components,
-            self.reference_spectra_group: self.update_ref_spectra,
-            self.sync_diagonals_group: self.update_sync_diag,
-            self.async_diagonals_group: self.update_async_diag,
-            self.x_axis_group: self.update_x_axis,
-            self.shown_graph_group: self.update_shown_graph,
-            self.color_map_box: self.update_color_map,
-            self.locator_box: self.update_locator,
-            self.contour_lines_color_box: self.update_color_lines,
-            self.peaks_signs_group: self.update_signs
+            self.reference_spectra_group:   self.update_ref_spectra,
+            self.sync_diagonals_group:      self.update_sync_diag,
+            self.async_diagonals_group:     self.update_async_diag,
+            self.x_axis_group:              self.update_x_axis,
+            self.shown_graph_group:         self.update_shown_graph,
+            self.color_map_box:             self.update_color_map,
+            self.locator_box:               self.update_locator,
+            self.contour_lines_color_box:   self.update_color_lines,
+            self.peaks_signs_group:         self.update_signs,
         }
     
     def get_plot_args(self):
-        plot_keys = {
-            'colorMap', 'numOfContour', 'locator_choice', 'syncDiag', 
-            'asyncDiag', 'xAxis', 'colorMapIntensity', 'colorLines', 
-            'colorLinesIntensity', 'shownGraph', 'peaks_signs'
+        """Translate GuiState → kwargs accepted by CorrelationPlotter.plot."""
+        s = self.state          # shorthand
+        return {
+            "colorMap":            s.color_map,
+            "numOfContour":        s.num_of_contours,
+            "locator_choice":      s.locator_choice,
+            "syncDiag":            s.sync_diag.value,
+            "asyncDiag":           s.async_diag.value,
+            "xAxis":               s.x_axis.value,
+            "colorMapIntensity":   s.color_map_intensity,
+            "colorLines":          s.contour_line_color,
+            "colorLinesIntensity": s.contour_lines_intensity,
+            "shownGraph":          s.shown_graph.value,
+            "peaks_signs":         s.peaks_signs.value,
         }
-        return {k: v for k, v in self.status.items() if k in plot_keys}
-
 
     def recalculate_correlation(self):
         try:
-            calc_method = self.status.get('calcMethod', 'default')
-            logging.info(f"Recalculating correlation using method: {calc_method}")
-            self.correlation_model.syn(method=self.status['calcMethod'])
-            self.correlation_model.asyn(method=self.status['calcMethod'])
+            method = self.state.calc_method.value     # HT or FFT
+            logging.info("Recalculating correlation using method: %s", method)
+            self.correlation_model.syn(method=method)
+            self.correlation_model.asyn(method=method)
             logging.info("Correlation recalculation completed successfully.")
         except Exception as e:
-            error_msg = f"An error occurred during recalculation: {str(e)}"
-            logging.error(error_msg)
-            QMessageBox.critical(self, "Calculation Error", error_msg)
-
-    def set_status_value(self, key, value):
-        self.status[key] = value
-        logging.info(f"Updated {key}: {value}")
+            logging.exception("Error during recalculation")
+            QMessageBox.critical(self, "Calculation Error", str(e))
 
     def update_node_att_bool(self):
-        self.set_status_value('node_attenuation', self.node_attenuation_checkbox.isChecked())
+        self._set_state(node_attenuation=self.node_attenuation_checkbox.isChecked())
 
     def update_pca_reconstruction_components(self):
-        self.set_status_value('reconstruction_components', int(self.pca_reconstruction_components_combobox.currentText()))
+        self._set_state(reconstruction_components=int(self.pca_reconstruction_components_combobox.currentText()))
 
     def update_correlation_type(self):
-        self.set_status_value('corrType', 'homo' if self.homo_corr_button.isChecked() else 'hetero')
-
-    def update_calc_method(self):
-        self.set_status_value('calcMethod', 'HT' if self.hilbert_transform_button.isChecked() else 'FFT')
+        self._set_state(
+            corr_type = CorrType.HOMO if self.homo_corr_button.isChecked() else CorrType.HETERO
+        )
 
     def update_ref_spectra(self):
-        ref_map = {
-            self.mean_button: 'mean',
-            self.initial_button: 'ini',
-            self.final_button: 'end'
-        }
-        self.set_status_value('refSpectra', next((val for btn, val in ref_map.items() if btn.isChecked()), 'zero'))
+        if self.mean_button.isChecked():
+            self._set_state(ref_spectra=RefSpectra.MEAN)
+        elif self.zero_button.isChecked():
+            self._set_state(ref_spectra=RefSpectra.ZERO)
+        elif self.initial_button.isChecked():
+            self._set_state(ref_spectra=RefSpectra.INITIAL)
+        else:
+            self._set_state(ref_spectra=RefSpectra.FINAL)
 
     def update_sync_diag(self):
-        self.set_status_value('syncDiag', 'main' if self.sync_main_diag_button.isChecked() else 'anti')
+        self._set_state(sync_diag = Diagonal.MAIN if self.sync_main_diag_button.isChecked() else Diagonal.ANTI)
 
     def update_async_diag(self):
-        self.set_status_value('asyncDiag', 'main' if self.async_main_diag_button.isChecked() else 'anti')
+        self._set_state(async_diag = Diagonal.MAIN if self.async_main_diag_button.isChecked() else Diagonal.ANTI)
 
     def update_x_axis(self):
-        self.set_status_value('xAxis', 'increasing' if self.increasing_x_button.isChecked() else 'decreasing')
+        self._set_state(x_axis = AxisDirection.INCREASING if self.increasing_x_button.isChecked()
+                        else AxisDirection.DECREASING)
 
     def update_shown_graph(self):
-        graph_map = {
-            self.sync_graph_option: 'sync',
-            self.async_graph_option: 'async'
-        }
-        self.set_status_value('shownGraph',
-                              next((val for btn, val in graph_map.items() if btn.isChecked()), 'both'))
+        if self.sync_graph_option.isChecked():
+            self._set_state(shown_graph=ShownGraph.SYNC)
+        elif self.async_graph_option.isChecked():
+            self._set_state(shown_graph=ShownGraph.ASYNC)
+        else:
+            self._set_state(shown_graph=ShownGraph.BOTH)
 
     def update_signs(self):
-        map = {
-            self.positive_signs_option: 'positive',
-            self.negative_signs_option: 'negative'
-        }
-        self.set_status_value('peaks_signs',
-                              next((val for btn, val in map.items() if btn.isChecked()), 'all'))
-
+        if self.positive_signs_option.isChecked():
+            self._set_state(peaks_signs=PeaksSigns.POSITIVE)
+        elif self.negative_signs_option.isChecked():
+            self._set_state(peaks_signs=PeaksSigns.NEGATIVE)
+        else:
+            self._set_state(peaks_signs=PeaksSigns.ALL)
 
     def update_color_map(self):
-        self.set_status_value('colorMap', self.color_map_box.currentText())
+        self._set_state(color_map=self.color_map_box.currentText())
 
     def update_locator(self):
-        self.set_status_value('locator_choice', self.locator_box.currentText())
+        choice = self.locator_box.currentText()
+
+        # veto "log" if data contain zeros / negatives
+        if choice == "log" and not self.controller.data_is_positive():
+            QMessageBox.warning(
+                self,
+                "Invalid Scale",
+                "Log locator requires all positive values; reverting to linear.",
+            )
+            # revert UI and choice
+            self.locator_box.setCurrentText("linear")
+            choice = "linear"
+
+        self._set_state(locator_choice=choice)
+
 
     def update_color_lines(self):
-        self.set_status_value('colorLines', self.contour_lines_color_box.currentText())
+        self._set_state(contour_line_color=self.contour_lines_color_box.currentText())
 
     def plot_button_function(self):
-        plot_status = self.get_plot_args()
-
         try:
-            if hasattr(self, 'ui1') and self.format1 == "xlsx":
-                location = [self.ui1.sheet, self.ui1.row, self.ui1.column, self.ui1.labeledColumns.isChecked()]
-                self.filename1 += location
-
-            if hasattr(self, 'ui2') and self.format2 == "xlsx":
-                location = [self.ui2.sheet, self.ui2.row, self.ui2.column, self.ui2.labeledColumns.isChecked()]
-                self.filename2 += location
-
-            self.correlation_model = self.controller.build_model(self.filename1, self.filename2, self.status)
+            self.correlation_model = self.controller.build_model(
+                self.filename1, self.filename2, self.state
+            )
             if self.correlation_model:
-                self.plotter = CorrelationPlotter(model = self.correlation_model, figure = self.figure, canvas = self.canvas)
+                self.plotter = CorrelationPlotter(
+                    model=self.correlation_model, 
+                    figure=self.figure, 
+                    canvas=self.canvas
+                )
+
+                plot_status = self.get_plot_args()
+
                 self.plotter.plot(**plot_status)
                 self.plot_ready = True
-                logging.info("Plot generated succesfully.")
-
+                logging.info("Plot generated successfully.")
         except ValueError as ve:
-            logging.warning(f"Validation Error: {ve}")
-            QMessageBox.warning(self, "Validation Error", f"{ve}")
+            logging.warning("Validation Error: %s", ve)
+            QMessageBox.warning(self, "Validation Error", str(ve))
         except Exception as e:
             logging.exception("Unexpected error in plot_button_function")
-            QMessageBox.critical(self, "Unexpected Error", f"An unexpected error occurred: {str(e)}")
+            QMessageBox.critical(self, "Unexpected Error", str(e))
 
     def plot_tridimensional(self):
-        # Check if the correlation object exists and appears ready.
         if self.correlation_model is None:
-            logging.info("3D plot not generated because the correlation object is not ready.")
             QMessageBox.information(self, "Information", "Please generate the 2D correlation plot first.")
             return
         try:
-            # Optionally, you might clear or prepare a separate 3D canvas if needed.
-            color_map = self.status.get('colorMap', 'coolwarm')
-            self.plotter.plot3d(color_map=color_map)
+            self.plotter.plot3d(color_map=self.state.color_map)
             logging.info("3D plot generated successfully.")
         except Exception as e:
             logging.exception("Error generating 3D plot.")
-            QMessageBox.critical(self, "3D Plot Error", f"An error occurred while generating the 3D plot: {str(e)}")
+            QMessageBox.critical(self, "3D Plot Error", str(e))

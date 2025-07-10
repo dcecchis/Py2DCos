@@ -144,9 +144,9 @@ class CorrelationPlotter:
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
-                data[data < 0] = abs(data).min()
+                data = np.where(data > 0, data, np.nan)
             elif peaks_signs == 'negative':
-                data[data > 0] = abs(data).min()
+                data = np.where(data < 0, data, np.nan)
 
             num_wave = self.model.syncr.index
             num_wave2 = self.model.syncr.columns
@@ -156,8 +156,8 @@ class CorrelationPlotter:
             panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
             # central contour and imshow
-            zmin = data.min()
-            zmax = data.max()
+            zmin = np.nanmin(data)
+            zmax = np.nanmax(data)
 
             imshow_kwargs = {
                 'vmax': zmax,
@@ -301,9 +301,9 @@ class CorrelationPlotter:
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
-                data[data < 0] = abs(data).min()
+                data = np.where(data > 0, data, np.nan)
             elif peaks_signs == 'negative':
-                data[data > 0] = abs(data).min()
+                data = np.where(data < 0, data, np.nan)
 
             num_wave = self.model.asyncr.index
             num_wave2 = self.model.asyncr.columns
@@ -312,8 +312,8 @@ class CorrelationPlotter:
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
             panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
-            zmin = data.min()
-            zmax = data.max()
+            zmin = np.nanmin(data)
+            zmax = np.nanmax(data)
 
             imshow_kwargs = {
                 'vmax': zmax,
@@ -488,9 +488,9 @@ class CorrelationPlotter:
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
-                data[data < 0] = abs(data).min()
+                data = np.where(data > 0, data, np.nan)
             elif peaks_signs == 'negative':
-                data[data > 0] = abs(data).min()
+                data = np.where(data < 0, data, np.nan)
 
             num_wave = self.model.syncr.index
             num_wave2 = self.model.syncr.columns
@@ -499,8 +499,8 @@ class CorrelationPlotter:
             panels['lower'].axhline(y=0., color='k', alpha=0.4)
             panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
-            zmin = data.min()
-            zmax = data.max()
+            zmin = np.nanmin(data)
+            zmax = np.nanmax(data)
 
             imshow_kwargs = {
                 'vmax': zmax,
@@ -545,9 +545,9 @@ class CorrelationPlotter:
             if peaks_signs == 'all':
                 pass
             elif peaks_signs == 'positive':
-                data[data < 0] = abs(data).min()
+                data = np.where(data > 0, data, np.nan)
             elif peaks_signs == 'negative':
-                data[data > 0] = -abs(data).min()
+                data = np.where(data < 0, data, np.nan)
 
             num_wave = self.model.asyncr.index
             num_wave2 = self.model.asyncr.columns
@@ -558,8 +558,8 @@ class CorrelationPlotter:
             panels['lower_right'].set_xlim(num_wave.min(), num_wave.max())
 
             # breakpoint()    # for debugging
-            zmin = data.min()
-            zmax = data.max()
+            zmin = np.nanmin(data)
+            zmax = np.nanmax(data)
 
             imshow_kwargs['vmax'] = zmax
             imshow_kwargs['vmin'] = zmin
