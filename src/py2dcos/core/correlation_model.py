@@ -22,7 +22,7 @@ class CorrelationModel:
 
         # allow single filename to serve as both spectra for homocorrelation
         if not filename2:
-            filename2 = filename1.copy()
+            filename2 = filename1
 
         def _normalise(path_or_list):
             # ensure we have [path, ext] format

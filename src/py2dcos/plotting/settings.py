@@ -1,5 +1,3 @@
-# src/py2dcos/plotting/settings.py
-
 from dataclasses import dataclass
 from enum import Enum, auto
 

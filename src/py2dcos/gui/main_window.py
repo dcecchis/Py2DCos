@@ -556,7 +556,9 @@ class MainWindow(QMainWindow):
         if not self.plot_ready:
             return
 
-        self.plotter.plot(**self.get_plot_args())
+        self.plotter.plot(
+                shownGraph=self.state.shown_graph.name.lower(),
+                **self.get_plot_args())
         self.canvas.draw()
         logging.info("Updated figure with new slider values.")
 
@@ -597,7 +599,8 @@ class MainWindow(QMainWindow):
         if recalc_required:
             self.recalculate_correlation()
 
-        self.plotter.plot(**self.get_plot_args())
+        self.plotter.plot(shownGraph=self.state.shown_graph.name.lower(),
+                          **self.get_plot_args())
         self.canvas.draw()
 
 
@@ -617,23 +620,21 @@ class MainWindow(QMainWindow):
             self.peaks_signs_group:         self.update_signs,
         }
     
-    def get_plot_args(self):
-        """Translate GuiState → kwargs accepted by CorrelationPlotter.plot."""
-        s = self.state          # shorthand
+    def get_plot_args(self) -> dict[str, object]:
         return {
-            "colorMap":            s.color_map,
-            "numOfContour":        s.num_of_contours,
-            "locator_choice":      s.locator_choice,
-            "syncDiag":            s.sync_diag.value,
-            "asyncDiag":           s.async_diag.value,
-            "xAxis":               s.x_axis.value,
-            "colorMapIntensity":   s.color_map_intensity,
-            "colorLines":          s.contour_line_color,
-            "colorLinesIntensity": s.contour_lines_intensity,
-            "shownGraph":          s.shown_graph.value,
-            "peaks_signs":         s.peaks_signs.value,
+            "color_map":             self.state.color_map,
+            "num_contours":          self.state.num_contours,
+            "locator":               self.state.locator,
+            "sync_diag":             self.state.sync_diag.value,
+            "async_diag":            self.state.async_diag.value,
+            "x_axis":                self.state.x_axis.value,
+            "color_map_intensity":   self.state.color_map_intensity,
+            "contour_line_color":    self.state.contour_line_color,
+            "contour_line_alpha":    self.state.contour_line_alpha,
+            "peaks":                 self.state.peaks_signs,  # or .value if you need a string
         }
-
+    
+    
     def recalculate_correlation(self):
         try:
             method = self.state.calc_method.value     # HT or FFT
@@ -727,9 +728,10 @@ class MainWindow(QMainWindow):
                     canvas=self.canvas
                 )
 
-                plot_status = self.get_plot_args()
-
-                self.plotter.plot(**plot_status)
+                self.plotter.plot(
+                    shownGraph=self.state.shown_graph.name.lower(),
+                    **self.get_plot_args()  
+                    )
                 self.plot_ready = True
                 logging.info("Plot generated successfully.")
         except ValueError as ve:
