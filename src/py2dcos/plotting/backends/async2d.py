@@ -4,10 +4,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib.figure import Figure
-
+from py2dcos.config.resources import PeaksSigns
 from py2dcos.core.locator import define_locator
 from py2dcos.plotting.backends.base import PlotBase
-from py2dcos.plotting.settings import PlotSettings, Peaks 
+from py2dcos.plotting.settings import PlotSettings
 
 
 if TYPE_CHECKING:
@@ -27,9 +27,9 @@ class Async2DPlot(PlotBase):
         locator = define_locator(settings.locator, settings.num_contours)
 
         data = model.asyncr.values.copy()
-        if settings.peaks is Peaks.POSITIVE:
+        if settings.peaks is PeaksSigns.POSITIVE:
             data = np.where(data > 0, data, np.nan)
-        elif settings.peaks is Peaks.NEGATIVE:
+        elif settings.peaks is PeaksSigns.NEGATIVE:
             data = np.where(data < 0, data, np.nan)
 
         zmin, zmax = np.nanmin(data), np.nanmax(data)

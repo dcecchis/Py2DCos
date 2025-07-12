@@ -27,13 +27,14 @@ class CorrelationPlotter:
         self.canvas = canvas
         self.manager = PlotManager(model)
 
-    # ------------- 2-D ---------------- #
     def plot(
         self,
         *,
         shownGraph: str = "both",
         **settings_kwargs,
     ) -> Figure:
+
+        self.figure.clear()
 
         settings = PlotSettings(**settings_kwargs)
         fig = self.manager.render(shownGraph.lower(), settings, fig=self.figure)
@@ -45,6 +46,6 @@ class CorrelationPlotter:
 
         return fig
 
-    # ------------- 3-D ---------------- #
+
     def plot3d(self, *, color_map: str = "coolwarm") -> None:
         self.manager.render3d(color_map)

@@ -1,7 +1,7 @@
 import sys
 import argparse
 from PyQt5.QtWidgets import QApplication
-from py2dcos.gui.main_window import MainWindow
+from py2dcos.gui.main_window_copy import MainWindow
 
 
 def launch_gui():

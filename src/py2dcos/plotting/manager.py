@@ -38,6 +38,4 @@ class PlotManager:
         return self._backend.draw(self.model, settings)
 
     def render3d(self, color_map: str = "coolwarm"):
-        """Plotly‐based 3D surfaces; returns None or Plotly figs."""
-        # you can keep your existing Plotly calls here
         self._backend.plot3d(self.model, color_map)

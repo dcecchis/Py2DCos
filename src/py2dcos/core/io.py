@@ -10,7 +10,7 @@ def reader(filename):
     # load Excel when ext is 'xlsx'
     if filename[1] == "xlsx":
         # unpack sheet, row, column from the filename list
-        sheet, row, column = filename[-4:-1]
+        sheet, row, column = filename[-3:]
         row = int(row)
         skipRows = row - 1
         # read the data matrix

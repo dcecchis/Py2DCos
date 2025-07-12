@@ -21,7 +21,6 @@ CMAP_LIST = [
 
 LOCATOR_CHOICES = ["linear", "maxN", "log"]
 
-
 #  ENUMS  (categorical settings -- safer than raw strings)
 class CorrType(Enum):
     HOMO = "homo"
@@ -91,3 +90,10 @@ class GuiState:
     # ▸ misc
     canvas: bool = True
     figure: str = ""
+
+    filename1: tuple[str, object] | None = None
+    format1:   str                      = ""
+    filename2: tuple[str, object] | None = None
+    format2:   str                      = ""
+    excel_params1: tuple[str, str, str] | None = None
+    excel_params2: tuple[str, str, str] | None = None
