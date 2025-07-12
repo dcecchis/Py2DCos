@@ -54,46 +54,7 @@ class ShownGraph(Enum):
     ASYNC = "async"
     BOTH = "both"
 
-
 class PeaksSigns(Enum):
     POSITIVE = "positive"
     NEGATIVE = "negative"
     ALL = "all"
-
-
-#  GUI STATE  (single source of truth for defaults)
-@dataclass
-class GuiState:
-    # ▸ data-treatment
-    sigma_gaussian: int = 0
-    node_attenuation: bool = False
-    reconstruction_components: int = 0
-
-    # ▸ correlation
-    corr_type: CorrType = CorrType.HOMO
-    calc_method: CalcMethod = CalcMethod.HT
-    ref_spectra: RefSpectra = RefSpectra.INITIAL
-
-    # ▸ plot configuration
-    color_map: str = "coolwarm"
-    num_of_contours: int = 6
-    locator_choice: str = "linear"
-    sync_diag: Diagonal = Diagonal.MAIN
-    async_diag: Diagonal = Diagonal.MAIN
-    x_axis: AxisDirection = AxisDirection.DECREASING
-    color_map_intensity: float = 1.0
-    contour_line_color: str = "black"
-    contour_lines_intensity: float = 0.6
-    shown_graph: ShownGraph = ShownGraph.BOTH
-    peaks_signs: PeaksSigns = PeaksSigns.ALL
-
-    # ▸ misc
-    canvas: bool = True
-    figure: str = ""
-
-    filename1: tuple[str, object] | None = None
-    format1:   str                      = ""
-    filename2: tuple[str, object] | None = None
-    format2:   str                      = ""
-    excel_params1: tuple[str, str, str] | None = None
-    excel_params2: tuple[str, str, str] | None = None
