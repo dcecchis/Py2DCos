@@ -11,12 +11,8 @@ from py2dcos.plotting.settings       import PlotSettings
 
 
 class CorrelationPlotter:
-    """
-    Extremely thin façade: the GUI passes a ready-made PlotSettings dict
-    (snake_case + enums).  We forward it to PlotManager and refresh the
-    Qt canvas if present.
-    """
-
+    # the GUI passes a ready-made PlotSettings dict. We forward it to PlotManager and refresh the Qt canvas if present.
+    
     def __init__(
         self,
         model:   CorrelationModel,
@@ -45,7 +41,3 @@ class CorrelationPlotter:
             fig.show()
 
         return fig
-
-
-    def plot3d(self, *, color_map: str = "coolwarm") -> None:
-        self.manager.render3d(color_map)

@@ -15,11 +15,6 @@ class ShownGraphBox(BaseBox):
     def __init__(self, state: GuiState, parent=None):
         super().__init__("Shown Graph", state, parent)
 
-        # Title label
-        title = QLabel("Shown Graph")
-        title.setAlignment(Qt.AlignCenter)
-        self.lay.addWidget(title)
-
         # Graph selection layout
         graph_layout = QHBoxLayout()
         self.sync_graph = QRadioButton("Sync")

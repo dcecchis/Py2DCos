@@ -6,9 +6,12 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from PyQt5 import QtGui
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from py2dcos.config.resources import GuiState, CorrType
+from py2dcos.plotting.backends.plotly_backend import PlotlyBackend
+from py2dcos.config.resources import CorrType, ShownGraph
+from py2dcos.gui.state import GuiState
 from py2dcos.controller.app_controller import AppController
 from py2dcos.plotting.correlation_plot import CorrelationPlotter
 from py2dcos.gui.widgets import (
@@ -33,15 +36,12 @@ class MainWindow(QMainWindow):
         self.build_ui()
         self.setup_signals()
         self.controller = AppController()
+        self.backend3d = PlotlyBackend(webview=self.webview)
+        self._on_state_change({'show_3d': self.state.show_3d})
 
     def _init_variables(self):
         self.plot_ready = False
         self.state = GuiState()
-
-    def _set_state(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self.state, key, value)
-            logging.info("Updated %s: %s", key, value)
 
     def build_ui(self):
         central = QWidget()
@@ -91,6 +91,11 @@ class MainWindow(QMainWindow):
         self.canvas.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         right_layout.addWidget(self.canvas)
 
+        self.webview = QWebEngineView()
+        self.webview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.webview.hide()
+        right_layout.addWidget(self.webview)
+
         toolbar_layout = QHBoxLayout()
         toolbar_layout.addStretch(1)
         self.toolbar = NavigationToolbar(self.canvas, parent=self)
@@ -106,6 +111,11 @@ class MainWindow(QMainWindow):
         # Merge all changes straight into GuiState
         self._set_state(**delta)
 
+        if "corr_type" in delta:
+            input_box = self.boxes[1]
+            is_hetero = (self.state.corr_type is CorrType.HETERO)
+            input_box.file2_button.setVisible(is_hetero)
+
         # If plot exists and some fields changed, recalc then redraw
         recalc_fields = {
             'corr_type', 'ref_spectra', 'reconstruction_components',
@@ -120,10 +130,40 @@ class MainWindow(QMainWindow):
                 **self.get_plot_args()
             )
             self.canvas.draw()
+        
+        # --- 3-D / 2-D toggle & update ---
+        if {'show_3d', 'shown_graph'} & delta.keys():
+            if self.state.show_3d:
+                which = 'sync'
+                if self.state.shown_graph is ShownGraph.ASYNC:
+                    which = 'async'
+                # Both defaults to sync
+                self.backend3d.plot3d(
+                    self.correlation_model,
+                    self.state.color_map,
+                    which=which
+                )
+                self.canvas.hide()
+                self.toolbar.hide()
+                self.webview.show()
+
+                # Force immediate WebGL resize so the figure renders
+                self.webview.page().runJavaScript(
+                    "window.dispatchEvent(new Event('resize'));"
+                )
+
+                self.tridimensional_button.setText("Show 2D Plot")
+            else:
+                self.webview.hide()
+                self.toolbar.show()
+                self.canvas.show()
+                self.canvas.draw()
+                self.tridimensional_button.setText("Show 3D Plot")
 
     def setup_signals(self):
         self.plot_button.clicked.connect(self.plot_button_function)
-        self.tridimensional_button.clicked.connect(self.plot_tridimensional)
+        self.tridimensional_button.setCheckable(True)
+        self.tridimensional_button.clicked.connect(self._on_3d_button)
 
     def plot_button_function(self):
         try:
@@ -176,16 +216,20 @@ class MainWindow(QMainWindow):
             logging.exception("Unexpected error in plot_button_function")
             QMessageBox.critical(self, 'Unexpected Error', str(e))
 
-    def plot_tridimensional(self):
+    def _on_3d_button(self):
+        # ensure 2D plot exists before trying to go 3D
         if not getattr(self, 'correlation_model', None):
-            QMessageBox.information(self, 'Information', 'Please generate the 2D correlation plot first.')
+            QMessageBox.information(self, 'Information',
+                'Please generate the 2D correlation plot first.')
+            # keep the button state consistent
+            self.tridimensional_button.setChecked(self.state.show_3d)
             return
-        try:
-            self.plotter.plot3d(color_map=self.state.color_map)
-            logging.info("3D plot generated successfully.")
-        except Exception as e:
-            logging.exception("Error generating 3D plot.")
-            QMessageBox.critical(self, '3D Plot Error', str(e))
+
+        # flip the flag
+        new_flag = not self.state.show_3d
+        self._set_state(show_3d=new_flag)
+        # immediately run your show_3d logic
+        self._on_state_change({'show_3d': new_flag})
 
     def recalculate_correlation(self):
         try:

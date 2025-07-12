@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QDialog, QPushButton
 import logging
-
+from py2dcos.config.resources import CorrType
 from .excel_params_dialog import ExcelParamsDialog
 from py2dcos.config.resources import GuiState
 from .base_box import BaseBox
@@ -27,7 +27,7 @@ class InputFilesBox(BaseBox):
         # File 2 button (hidden by default)
         self.file2_button = QPushButton("Choose your file")
         self.file2_button.setMinimumSize(250, 30)
-        self.file2_button.hide()
+        self.file2_button.hide() if self.state.corr_type == CorrType.HOMO else self.file2_button.show()
         self.lay.addWidget(self.file2_button)
 
         # Connect signals

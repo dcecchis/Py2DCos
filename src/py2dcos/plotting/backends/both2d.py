@@ -16,10 +16,7 @@ if TYPE_CHECKING:
 
 
 class Both2DPlot(PlotBase):
-    """
-    Side-by-side synchronous (left) + asynchronous (right) 2-D maps
-    with shared reference spectra panels.
-    """
+    # Side-by-side synchronous (left) + asynchronous (right) 2-D maps with shared reference spectra panels.
 
     def draw(
         self,
@@ -32,9 +29,7 @@ class Both2DPlot(PlotBase):
         linewidth, fontsize = 0.9, 8
         locator = define_locator(settings.locator, settings.num_contours)
 
-        # ───────────────────────────────
         # Prepare sync / async matrices
-        # ───────────────────────────────
         sync = model.syncr.values.copy()
         async_ = model.asyncr.values.copy()
 
@@ -66,9 +61,7 @@ class Both2DPlot(PlotBase):
             z = -np.take(fmt_a((x, y)), 0)
             return 'x={x:.2f}  y={y:.2f}  z={z:.5f}'.format(x=x, y=y, z=z)
 
-        # ───────────────────────────────
         # GridSpec layout (left sync, right async)
-        # ───────────────────────────────
         gs = mpl.gridspec.GridSpec(
             5, 4,
             width_ratios=[2, 7, 0.2, 7],     # lefter | sync | cbar | async
@@ -92,6 +85,9 @@ class Both2DPlot(PlotBase):
         ax['lefter'].sharey(ax['sync'])
         ax['lower'].sharex(ax['sync'])
         ax['lower_r'].sharex(ax['async_'])
+        ax['async_'].sharex(ax['sync'])
+        ax['async_'].sharey(ax['sync'])
+
 
         for a in ax.values():
             a.tick_params(axis='both', which='both', direction='out', bottom=False, top=False, left=False, right=False, labelbottom=False, labelleft=False, labeltop=False, labelright=False, length=4)
