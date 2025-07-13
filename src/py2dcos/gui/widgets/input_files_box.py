@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QDialog, QPushButton
+from PyQt5.QtCore import pyqtSignal
 import logging
 from py2dcos.config.resources import CorrType
 from .excel_params_dialog import ExcelParamsDialog
-from py2dcos.config.resources import GuiState
 from .base_box import BaseBox
 
 
@@ -16,7 +16,9 @@ class InputFilesBox(BaseBox):
       - 'excel_params1': (sheet, row, cols) if fmt is 'xlsx'
       - 'filename2', 'format2', 'excel_params2' similarly for the second file
     """
-    def __init__(self, state: GuiState, parent=None):
+    state_changed = pyqtSignal(dict)
+
+    def __init__(self, state, parent=None):
         super().__init__("Input", state, parent)
 
         # File 1 button
@@ -27,12 +29,23 @@ class InputFilesBox(BaseBox):
         # File 2 button (hidden by default)
         self.file2_button = QPushButton("Choose your file")
         self.file2_button.setMinimumSize(250, 30)
-        self.file2_button.hide() if self.state.corr_type == CorrType.HOMO else self.file2_button.show()
+        self.file2_button.hide()
         self.lay.addWidget(self.file2_button)
 
         # Connect signals
         self.file1_button.clicked.connect(self._choose_file1)
         self.file2_button.clicked.connect(self._choose_file2)
+
+    def update_from_state(self, state):
+        # File1
+        if state.filename1:
+            name = state.filename1[0].rsplit('/',1)[-1]
+            self.file1_button.setText(name)
+        # File2 visibility & label
+        self.file2_button.setVisible(state.corr_type is CorrType.HETERO)
+        if state.filename2:
+            name2 = state.filename2[0].rsplit('/',1)[-1]
+            self.file2_button.setText(name2)
 
     def _choose_file1(self):
         try:
@@ -51,18 +64,14 @@ class InputFilesBox(BaseBox):
                 if dlg.exec_() != QDialog.Accepted:
                     return
                 sheet, row, cols = dlg.get_params()
-                
 
-            self.state.filename1 = (path, fmt)
-            self.state.format1 = fmt
-
+            # Prepare payload for MainWindow
             payload = {
                 'filename1': (path, fmt),
-                'format1':   fmt,
+                'format1': fmt,
             }
-
-            if fmt == "xlsx":
-                payload["excel_params1"] = (sheet,row,cols)
+            if fmt == 'xlsx':
+                payload['excel_params1'] = (sheet, row, cols)
 
             # Update UI
             self.file1_button.setText(name)
@@ -90,20 +99,18 @@ class InputFilesBox(BaseBox):
                 if dlg.exec_() != QDialog.Accepted:
                     return
                 sheet, row, cols = dlg.get_params()
-                
 
-            self.state.filename2 = (path, fmt)
-            self.state.format2 = fmt
-
+            # Prepare payload for MainWindow
             payload = {
                 'filename2': (path, fmt),
-                'format2':   fmt,
+                'format2': fmt,
             }
+            if fmt == 'xlsx':
+                payload['excel_params2'] = (sheet, row, cols)
 
-            if fmt == "xlsx":
-                payload["excel_params2"] = (sheet,row,cols)
-
+            # Update UI
             self.file2_button.setText(name)
+            # Notify listeners
             self.state_changed.emit(payload)
 
         except Exception as e:

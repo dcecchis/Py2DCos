@@ -1,18 +1,20 @@
 import logging
 import matplotlib.pyplot as plt
+
 from PyQt5.QtWidgets import (
     QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QScrollArea,
     QPushButton, QSizePolicy, QMessageBox
 )
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5 import QtGui
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from py2dcos.plotting.backends.plotly_backend import PlotlyBackend
+
 from py2dcos.config.resources import CorrType, ShownGraph
 from py2dcos.gui.state import GuiState
 from py2dcos.controller.app_controller import AppController
+from py2dcos.plotting.backends.plotly_backend import PlotlyBackend
 from py2dcos.plotting.correlation_plot import CorrelationPlotter
 from py2dcos.gui.widgets import (
     CorrelationTypeBox,
@@ -24,31 +26,37 @@ from py2dcos.gui.widgets import (
     ShownGraphBox,
 )
 
-# Configure logging
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
+
 class MainWindow(QMainWindow):
+    """
+    The main application window. Holds the single GuiState instance,
+    routes widget state_changed signals into that state, and drives plotting.
+    """
     def __init__(self):
         super().__init__()
+        self.state = GuiState()
+        self.plot_ready = False
 
-        self._init_variables()
         self.setWindowTitle("Py2DCoS")
-        self.build_ui()
-        self.setup_signals()
+        self._build_ui()
+        self._setup_signals()
+
+        # Core controller and 3D backend
         self.controller = AppController()
         self.backend3d = PlotlyBackend(webview=self.webview)
-        self._on_state_change({'show_3d': self.state.show_3d})
 
-    def _init_variables(self):
-        self.plot_ready = False
-        self.state = GuiState()
+        # Initialize UI from state
+        self._apply_state({})  # no-op, but pushes initial state into widgets
 
-    def build_ui(self):
+    def _build_ui(self):
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
 
-        # Left scroll panel
+        # Left panel: all our parameter boxes
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         left_container = QWidget()
@@ -69,18 +77,13 @@ class MainWindow(QMainWindow):
         # Plot button
         self.plot_button = QPushButton("Plot")
         self.plot_button.setFont(self.get_font_title())
-        self.plot_button.setFixedSize(250, 50)
         left_layout.addWidget(self.plot_button, alignment=Qt.AlignHCenter)
         left_layout.addStretch()
 
         scroll.setWidget(left_container)
         main_layout.addWidget(scroll, 2)
 
-        # Connect all box signals
-        for box in self.boxes:
-            box.state_changed.connect(self._on_state_change)
-
-        # Right plot area
+        # Right panel: plotting canvas and toolbar
         self._create_plot_area(main_layout)
 
     def _create_plot_area(self, parent_layout):
@@ -101,170 +104,159 @@ class MainWindow(QMainWindow):
         self.toolbar = NavigationToolbar(self.canvas, parent=self)
         toolbar_layout.addWidget(self.toolbar)
         self.tridimensional_button = QPushButton("Show 3D Plot")
+        self.tridimensional_button.setCheckable(True)
         toolbar_layout.addWidget(self.tridimensional_button)
         toolbar_layout.addStretch(1)
         right_layout.addLayout(toolbar_layout)
 
         parent_layout.addLayout(right_layout, 5)
 
-    def _on_state_change(self, delta: dict):
-        # Merge all changes straight into GuiState
-        self._set_state(**delta)
+    def _setup_signals(self):
+        # Route every box’s delta into _apply_state
+        for box in self.boxes:
+            box.state_changed.connect(self._apply_state)
 
-        if "corr_type" in delta:
-            input_box = self.boxes[1]
-            is_hetero = (self.state.corr_type is CorrType.HETERO)
-            input_box.file2_button.setVisible(is_hetero)
+        self.plot_button.clicked.connect(self._on_plot_clicked)
+        self.tridimensional_button.clicked.connect(self._on_3d_toggled)
 
-        # If plot exists and some fields changed, recalc then redraw
-        recalc_fields = {
-            'corr_type', 'ref_spectra', 'reconstruction_components',
-            'node_attenuation', 'sigma_gaussian'
-        }
-        if self.plot_ready and recalc_fields & delta.keys():
-            self.recalculate_correlation()
+    def _apply_state(self, delta: dict):
+        """
+        Apply the incoming partial state (`delta`), update self.state,
+        then reconfigure UI and plotting as needed.
+        """
+        # 1) Merge incoming changes
+        if delta:
+            logger.info("Applying state delta: %s", delta)
+            self.state = self.state.with_updates(**delta)
 
+            # Show/hide second-file button for heterocorrelation
+            if "corr_type" in delta:
+                is_hetero = (self.state.corr_type is CorrType.HETERO)
+                self.boxes[1].file2_button.setVisible(is_hetero)
+
+            # Push the new state into each widget
+            for box in self.boxes:
+                if hasattr(box, "update_from_state"):
+                    box.update_from_state(self.state)
+
+        # 2) If we've already plotted once, handle recompute & redraw
         if self.plot_ready:
-            self.plotter.plot(
-                shownGraph=self.state.shown_graph.name.lower(),
-                **self.get_plot_args()
-            )
-            self.canvas.draw()
-        
-        # --- 3-D / 2-D toggle & update ---
-        if {'show_3d', 'shown_graph'} & delta.keys():
-            if self.state.show_3d:
-                which = 'sync'
-                if self.state.shown_graph is ShownGraph.ASYNC:
-                    which = 'async'
-                # Both defaults to sync
-                self.backend3d.plot3d(
-                    self.correlation_model,
-                    self.state.color_map,
-                    which=which
-                )
-                self.canvas.hide()
-                self.toolbar.hide()
-                self.webview.show()
+            # a) Full recompute when any “recalc” field changed
+            if GuiState.requiring_recalc & delta.keys():
+                self._recalculate_correlation()
 
-                # Force immediate WebGL resize so the figure renders
-                self.webview.page().runJavaScript(
-                    "window.dispatchEvent(new Event('resize'));"
+            # b) Redraw 2D plot if we're still in 2D mode
+            if not self.state.show_3d:
+                self.plotter.plot(
+                    shownGraph=self.state.shown_graph.value,
+                    **self.get_plot_args()
                 )
-
-                self.tridimensional_button.setText("Show 2D Plot")
-            else:
-                self.webview.hide()
-                self.toolbar.show()
-                self.canvas.show()
                 self.canvas.draw()
-                self.tridimensional_button.setText("Show 3D Plot")
 
-    def setup_signals(self):
-        self.plot_button.clicked.connect(self.plot_button_function)
-        self.tridimensional_button.setCheckable(True)
-        self.tridimensional_button.clicked.connect(self._on_3d_button)
+        # 3) Handle toggling into/out of 3D mode
+        if {"show_3d", "shown_graph"} & delta.keys():
+            self._update_3d_view()
 
-    def plot_button_function(self):
+    def _on_plot_clicked(self):
+        """Triggered when the user clicks ‘Plot’ for the first time."""
         try:
-            file1 = self.state.filename1
-            file2 = self.state.filename2
-
-            if not file1:
-                QMessageBox.warning(self, 'Missing File', 'Please choose at least one input file.')
+            # Validate files
+            f1, f2 = self.state.filename1, self.state.filename2
+            if not f1:
+                QMessageBox.warning(self, "Missing File", "Please choose at least one input file.")
                 return
+
             if self.state.corr_type is CorrType.HOMO:
-                file2 = file1
-
-            elif not file2:
-                QMessageBox.warning(
-                    self, 'Missing Second File',
-                    'Choose the second file for heterocorrelation or switch to homocorrelation.'
-                )
+                f2 = f1
+            elif not f2:
+                QMessageBox.warning(self, "Missing Second File",
+                                    "Choose the second file for heterocorrelation or switch to homocorrelation.")
                 return
 
+            # Unpack Excel params if needed
             if self.state.format1 == "xlsx" and self.state.excel_params1:
-                file1 = (*file1, *self.state.excel_params1)
+                f1 = (*f1, *self.state.excel_params1)
                 if self.state.corr_type is CorrType.HOMO:
-                    file2 = file1
+                    f2 = f1
+            if f2 and self.state.format2 == "xlsx" and self.state.excel_params2:
+                f2 = (*f2, *self.state.excel_params2)
 
-            if file2 and self.state.format2 == "xlsx" and self.state.excel_params2:
-                file2 = (*file2, *self.state.excel_params2)
-
-            self.correlation_model = self.controller.build_model(
-                file1, file2, self.state
-            )
+            # Build & plot
+            self.correlation_model = self.controller.build_model(f1, f2, self.state)
             if not self.correlation_model:
                 return
 
-            self.plotter = CorrelationPlotter(
-                model=self.correlation_model,
-                figure=self.figure,
-                canvas=self.canvas
-            )
-            self.plotter.plot(
-                shownGraph=self.state.shown_graph.name.lower(),
-                **self.get_plot_args()
-            )
+            self.plotter = CorrelationPlotter(model=self.correlation_model,
+                                              figure=self.figure, canvas=self.canvas)
+            self.plotter.plot(shownGraph=self.state.shown_graph.value, **self.get_plot_args())
             self.plot_ready = True
-            logging.info("Plot generated successfully.")
+            logger.info("2D plot generated.")
 
         except ValueError as ve:
-            logging.warning("Validation Error: %s", ve)
-            QMessageBox.warning(self, 'Validation Error', str(ve))
+            logger.warning("Validation Error: %s", ve)
+            QMessageBox.warning(self, "Validation Error", str(ve))
         except Exception as e:
-            logging.exception("Unexpected error in plot_button_function")
-            QMessageBox.critical(self, 'Unexpected Error', str(e))
+            logger.exception("Unexpected plotting error")
+            QMessageBox.critical(self, "Unexpected Error", str(e))
 
-    def _on_3d_button(self):
-        # ensure 2D plot exists before trying to go 3D
-        if not getattr(self, 'correlation_model', None):
-            QMessageBox.information(self, 'Information',
-                'Please generate the 2D correlation plot first.')
-            # keep the button state consistent
+    def _on_3d_toggled(self, checked: bool):
+        """Toggle between 2D and 3D views."""
+        if not getattr(self, "correlation_model", None):
+            QMessageBox.information(self, "Information", "Generate the 2D plot first.")
             self.tridimensional_button.setChecked(self.state.show_3d)
             return
 
-        # flip the flag
-        new_flag = not self.state.show_3d
-        self._set_state(show_3d=new_flag)
-        # immediately run your show_3d logic
-        self._on_state_change({'show_3d': new_flag})
+        # Emit as a normal state change
+        self._apply_state({'show_3d': checked})
 
-    def recalculate_correlation(self):
+    def _update_3d_view(self):
+        """Switch canvas/toolbars based on self.state.show_3d."""
+        if self.state.show_3d:
+            which = "sync" if self.state.shown_graph is ShownGraph.SYNC else "async"
+            self.backend3d.plot3d(self.correlation_model, self.state.color_map, which=which)
+            self.canvas.hide()
+            self.toolbar.hide()
+            self.webview.show()
+            self.tridimensional_button.setText("Show 2D Plot")
+            # Force WebGL resize
+            self.webview.page().runJavaScript("window.dispatchEvent(new Event('resize'));")
+        else:
+            self.webview.hide()
+            self.toolbar.show()
+            self.canvas.show()
+            self.tridimensional_button.setText("Show 3D Plot")
+            self.canvas.draw()
+
+    def _recalculate_correlation(self):
+        """Re-run correlation computation on the existing model."""
         try:
             method = self.state.calc_method.value
-            logging.info("Recalculating correlation using method: %s", method)
+            logger.info("Recalculating correlation via %s", method)
             self.correlation_model.syn(method=method)
             self.correlation_model.asyn(method=method)
-            logging.info("Correlation recomputation completed.")
         except Exception as e:
-            logging.exception("Error during recalculation")
-            QMessageBox.critical(self, 'Calculation Error', str(e))
+            logger.exception("Recalculation failed")
+            QMessageBox.critical(self, "Calculation Error", str(e))
 
     def get_plot_args(self) -> dict:
+        """Translate our GuiState into keyword args for CorrelationPlotter.plot."""
         return {
-            'color_map': self.state.color_map,
-            'num_contours': self.state.num_of_contours,
-            'locator': self.state.locator_choice,
-            'sync_diag': self.state.sync_diag.value,
-            'async_diag': self.state.async_diag.value,
-            'x_axis': self.state.x_axis.value,
-            'color_map_intensity': self.state.color_map_intensity,
-            'contour_line_color': self.state.contour_line_color,
-            'contour_line_alpha': self.state.contour_lines_intensity,
-            'peaks': self.state.peaks_signs,
+            "color_map":             self.state.color_map,
+            "num_contours":          self.state.num_contours,
+            "locator":               self.state.locator_choice,
+            "sync_diag":             self.state.sync_diag.value,
+            "async_diag":            self.state.async_diag.value,
+            "x_axis":                self.state.x_axis.value,
+            "color_map_intensity":   self.state.color_map_intensity,
+            "contour_line_color":    self.state.contour_line_color,
+            "contour_line_alpha":    self.state.contour_lines_intensity,
+            "peaks":                 self.state.peaks_signs.value,
         }
 
     def get_font_title(self):
-        font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(12)
+        font = QtGui.QFont("Arial", 12)
         font.setBold(True)
         return font
 
     def get_font_text(self):
-        font = QtGui.QFont()
-        font.setFamily("Arial")
-        font.setPointSize(10)
-        return font
+        return QtGui.QFont("Arial", 10)

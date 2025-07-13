@@ -8,7 +8,7 @@ from py2dcos.core.validators import (
     UnsupportedMethodError,
 )
 from py2dcos.core.correlation_model import CorrelationModel
-from py2dcos.config.resources import GuiState
+from py2dcos.gui.state import GuiState
 
 
 class AppController:

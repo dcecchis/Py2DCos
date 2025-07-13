@@ -8,6 +8,7 @@ This file must stay lightweight: no PyQt or Matplotlib imports here.
 from enum import Enum, auto
 from dataclasses import dataclass
 
+
 #  PUBLIC CONSTANTS (lists for combo-boxes etc.)
 COLOR_LIST = [
     "navy", "black", "white", "red", "lime", "blue", "yellow",
@@ -20,6 +21,15 @@ CMAP_LIST = [
 ]
 
 LOCATOR_CHOICES = ["linear", "maxN", "log"]
+
+
+MIN_CONTOURS = 1
+MAX_CONTOURS = 40
+MIN_INTENSITY = 0
+MAX_INTENSITY = 100
+MIN_LINE_INTENSITY = 0
+MAX_LINE_INTENSITY = 100
+
 
 #  ENUMS  (categorical settings -- safer than raw strings)
 class CorrType(Enum):

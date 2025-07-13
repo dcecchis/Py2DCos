@@ -1,6 +1,8 @@
+# gui/state.py
+
 from __future__ import annotations
-from dataclasses import dataclass, replace
-from typing import Tuple, Optional
+from dataclasses import dataclass, field, fields, replace
+from typing import Tuple, Optional, ClassVar, FrozenSet
 from py2dcos.config.resources import (
     CorrType, CalcMethod, RefSpectra, Diagonal,
     AxisDirection, ShownGraph, PeaksSigns
@@ -10,17 +12,17 @@ ExcelParams = Tuple[str, str, str]
 
 @dataclass(frozen=True, slots=True)
 class GuiState:
-    # data-treatment
-    sigma_gaussian: int = 0
-    node_attenuation: bool = False
-    reconstruction_components: int = 0
+    # ▸ data-treatment (recompute needed)
+    sigma_gaussian: int = field(default=0, metadata={"recalc": True})
+    node_attenuation: bool = field(default=False, metadata={"recalc": True})
+    reconstruction_components: int = field(default=0, metadata={"recalc": True})
 
-    # correlation
-    corr_type: CorrType = CorrType.HOMO
+    # ▸ correlation (recompute needed)
+    corr_type: CorrType = field(default=CorrType.HOMO, metadata={"recalc": True})
     calc_method: CalcMethod = CalcMethod.HT
-    ref_spectra: RefSpectra = RefSpectra.INITIAL
+    ref_spectra: RefSpectra = field(default=RefSpectra.INITIAL, metadata={"recalc": True})
 
-    # plotting
+    # ▸ plotting (no recompute)
     color_map: str = "coolwarm"
     num_contours: int = 6
     locator_choice: str = "linear"
@@ -33,7 +35,7 @@ class GuiState:
     shown_graph: ShownGraph = ShownGraph.BOTH
     peaks_signs: PeaksSigns = PeaksSigns.ALL
 
-    # files / misc
+    # ▸ files / misc
     filename1: Optional[Tuple[str, object]] = None
     format1: str = ""
     filename2: Optional[Tuple[str, object]] = None
@@ -43,5 +45,10 @@ class GuiState:
     show_3d: bool = False
 
     def with_updates(self, **kwargs) -> "GuiState":
-        """Return a new state with selected fields changed."""
         return replace(self, **kwargs)
+
+# Now that GuiState exists, compute the class‐level set:
+GuiState.requiring_recalc = frozenset(
+    f.name for f in fields(GuiState)
+    if f.metadata.get("recalc", False)
+)
