@@ -23,6 +23,11 @@ class CorrelationPlotter:
         self.canvas = canvas
         self.manager = PlotManager(model)
 
+    def update_model(self, model: CorrelationModel) -> None:
+        """Replace the underlying model and reset the PlotManager cache."""
+        self.model = model
+        self.manager = PlotManager(model)   # ← NEW manager tied to fresh data
+
     def plot(
         self,
         *,

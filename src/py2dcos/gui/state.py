@@ -13,14 +13,14 @@ ExcelParams = Tuple[str, str, str]
 @dataclass(frozen=True, slots=True)
 class GuiState:
     # ▸ data-treatment (recompute needed)
-    sigma_gaussian: int = field(default=0, metadata={"recalc": True})
-    node_attenuation: bool = field(default=False, metadata={"recalc": True})
-    reconstruction_components: int = field(default=0, metadata={"recalc": True})
+    sigma_gaussian: int = field(default=0, metadata={"rebuild": True})
+    node_attenuation: bool = field(default=False, metadata={"rebuild": True})
+    reconstruction_components: int = field(default=0, metadata={"rebuild": True})
 
     # ▸ correlation (recompute needed)
-    corr_type: CorrType = field(default=CorrType.HOMO, metadata={"recalc": True})
+    corr_type: CorrType = field(default=CorrType.HOMO, metadata={"rebuild": True})
     calc_method: CalcMethod = CalcMethod.HT
-    ref_spectra: RefSpectra = field(default=RefSpectra.INITIAL, metadata={"recalc": True})
+    ref_spectra: RefSpectra = field(default=RefSpectra.INITIAL, metadata={"rebuild": True})
 
     # ▸ plotting (no recompute)
     color_map: str = "coolwarm"
@@ -48,7 +48,7 @@ class GuiState:
         return replace(self, **kwargs)
 
 # Now that GuiState exists, compute the class‐level set:
-GuiState.requiring_recalc = frozenset(
+GuiState.requiring_rebuild = frozenset(
     f.name for f in fields(GuiState)
-    if f.metadata.get("recalc", False)
+    if f.metadata.get("rebuild", False)
 )
