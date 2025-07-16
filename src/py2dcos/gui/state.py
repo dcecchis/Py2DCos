@@ -1,28 +1,28 @@
-# gui/state.py
-
 from __future__ import annotations
 from dataclasses import dataclass, field, fields, replace
-from typing import Tuple, Optional, ClassVar, FrozenSet
+from typing import Tuple, Optional
 from py2dcos.config.resources import (
     CorrType, CalcMethod, RefSpectra, Diagonal,
     AxisDirection, ShownGraph, PeaksSigns
 )
 
+# alias for parameters needed when reading excel files (sheet, header row, data range)
 ExcelParams = Tuple[str, str, str]
 
 @dataclass(frozen=True, slots=True)
+# dataclass auto-generates init, repr, eq and enforces immutability; slots reduce memory footprint
 class GuiState:
-    # ▸ data-treatment (recompute needed)
+    # fields that trigger full data/model rebuild when changed
     sigma_gaussian: int = field(default=0, metadata={"rebuild": True})
     node_attenuation: bool = field(default=False, metadata={"rebuild": True})
     reconstruction_components: int = field(default=0, metadata={"rebuild": True})
 
-    # ▸ correlation (recompute needed)
+    # correlation settings (some require rebuild, calc_method only changes algorithm)
     corr_type: CorrType = field(default=CorrType.HOMO, metadata={"rebuild": True})
-    calc_method: CalcMethod = CalcMethod.HT
+    calc_method: CalcMethod = CalcMethod.HT # still no FT implemented
     ref_spectra: RefSpectra = field(default=RefSpectra.INITIAL, metadata={"rebuild": True})
 
-    # ▸ plotting (no recompute)
+    # plotting parameters (controls style only, no model recompute)
     color_map: str = "coolwarm"
     num_contours: int = 6
     locator_choice: str = "linear"
@@ -35,20 +35,22 @@ class GuiState:
     shown_graph: ShownGraph = ShownGraph.BOTH
     peaks_signs: PeaksSigns = PeaksSigns.ALL
 
-    # ▸ files / misc
+    # file inputs and misc flags (free to change without triggering rebuild)
     filename1: Optional[Tuple[str, object]] = None
     format1: str = ""
     filename2: Optional[Tuple[str, object]] = None
     format2: str = ""
     excel_params1: Optional[ExcelParams] = None
     excel_params2: Optional[ExcelParams] = None
-    show_3d: bool = False
+    show_3d: bool = False  # toggle between 2d canvas and 3d webview
 
     def with_updates(self, **kwargs) -> "GuiState":
+        # create a new state instance merging provided changes
+        # preserves immutability by returning a fresh object
         return replace(self, **kwargs)
 
-# Now that GuiState exists, compute the class‐level set:
+# compute the set of field names that require full rebuild when updated
 GuiState.requiring_rebuild = frozenset(
-    f.name for f in fields(GuiState)
-    if f.metadata.get("rebuild", False)
+    f.name for f in fields(GuiState) if f.metadata.get("rebuild", False)
 )
+# frozenset ensures the set is immutable and optimized for membership checks

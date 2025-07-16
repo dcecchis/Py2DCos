@@ -10,25 +10,25 @@ from py2dcos.core.validators import (
 from py2dcos.core.correlation_model import CorrelationModel
 from py2dcos.gui.state import GuiState
 
-
 class AppController:
-
+    # controller to build and cache correlation model based on user inputs
     def __init__(self):
+        # store last input fingerprint to skip redundant model rebuilds
         self._prev_fingerprint: Optional[tuple] = None
+        # cache of the most recent correlation model
         self._corr_obj: Optional[CorrelationModel] = None
 
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+    # helpers
     @staticmethod
     def _fingerprint(file1, file2, state: GuiState) -> tuple:
         """
-        Create a hashable snapshot of the inputs
+        create a hashable snapshot of the current inputs
         """
         def _as_tuple(f):
-            # file info arrives as [filepath, ext, …] or a str path
+            # handle file info given either as [path, ext, ...] or plain string
             return tuple(f) if isinstance(f, list) else (f,)
 
+        # include preprocessing parameters in fingerprint to detect any change
         return (
             *_as_tuple(file1),
             *_as_tuple(file2),
@@ -39,9 +39,7 @@ class AppController:
             state.reconstruction_components,
         )
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
+     # public api
     def build_model(
         self,
         file1,
@@ -49,30 +47,30 @@ class AppController:
         state: GuiState | None = None,
     ) -> CorrelationModel:
         """
-        Return a ready-to-plot CorrelationModel.
+        return a ready-to-plot correlation model
         """
+        # require gui state to know user settings for preprocessing
         if state is None:
             raise ValueError("`state` (GuiState) must be provided")
 
-        # Homocorrelation shortcut
+        # if second file missing, use first for homocorrelation
         if not file2:
             file2 = file1
 
-        # Validation
+        # validate file extensions and chosen correlation method early
         try:
-            # file1[1] and file2[1] are the extensions
             validate_extension(file1[1], file2[1])
-            validate_method(state.calc_method.value)  # Enum → str
+            validate_method(state.calc_method.value)
         except (UnsupportedExtensionError, UnsupportedMethodError) as exc:
             logging.error(str(exc))
-            raise  # GUI catches and shows message box
+            # propagate to ui layer for user notification
+            raise
 
-
-        # Detect changes (to avoid redundant work)
+        # detect if inputs or settings changed since last model build
         fp = self._fingerprint(file1, file2, state)
-
         if fp != self._prev_fingerprint:
-            logging.info("Creating new CorrelationModel.")
+            logging.info("creating new correlation model.")
+            # build new model with current parameters
             self._corr_obj = CorrelationModel(
                 file1,
                 file2,
@@ -82,16 +80,17 @@ class AppController:
                 sigma_gaussian=state.sigma_gaussian,
                 node_attenuation=state.node_attenuation,
             )
+            # update cache key
             self._prev_fingerprint = fp
 
-        # Calculate / update correlations
-        logging.info("Calculating synchronous correlation.")
+        # always recompute maps to account for method changes
+        logging.info("calculating synchronous correlation.")
         self._corr_obj.syn(method=state.calc_method.value)
-
-        logging.info("Calculating asynchronous correlation.")
+        logging.info("calculating asynchronous correlation.")
         self._corr_obj.asyn(method=state.calc_method.value)
 
         return self._corr_obj
 
     def data_is_positive(self) -> bool:
+        # return true only if model exists and all correlation values are positive
         return bool(self._corr_obj) and self._corr_obj.is_positive()

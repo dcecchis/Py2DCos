@@ -1,146 +1,173 @@
 """
 excel_params_dialog.py
 
-Modal dialog for getting Excel file parameters: sheet name, start row, column range.
+modal dialog that asks for excel parsing parameters: sheet name, starting row and column range
 """
+from __future__ import annotations
+
 import logging
-from typing import Optional, Tuple
+from typing import Optional, Tuple, List
 
 import pandas as pd
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QGridLayout,
     QLabel, QRadioButton, QComboBox, QLineEdit,
     QButtonGroup, QPushButton, QMessageBox, QWidget
 )
-from PyQt5.QtGui import QFont
 
-from py2dcos.core.validators import validate_special_case, InvalidExcelFormatError
+from py2dcos.core.validators import (
+    validate_special_case, InvalidExcelFormatError
+)
 
 logger = logging.getLogger(__name__)
 
 
 class ExcelParamsDialog(QDialog):
     """
-    Dialog to select Excel parsing options: sheet, row, and column range.
+    dialog for selecting excel parsing parameters
 
-    If 'Base Case' is chosen, returns the first sheet with empty row and column.
-    Otherwise validates special-case inputs via `validate_special_case`.
+    base case: take first sheet with no row or column limits
+    special case: let user specify sheet, starting row, and column range
     """
+
     def __init__(self, excel_path: str, parent: Optional[QWidget] = None):
         super().__init__(parent)
-        self.excel_path = excel_path
         self.setModal(True)
+        self.excel_path = excel_path
 
-        # Attempt to read sheet names
+        # load sheet names so user can pick from actual options
         try:
             self.sheets = pd.ExcelFile(excel_path).sheet_names
-        except Exception as e:
-            logger.exception("Failed to read Excel file: %s", excel_path)
-            QMessageBox.critical(self, "Excel Read Error", str(e))
+        except Exception as exc:          # pragma: no cover
+            logger.exception("failed to read excel file %s", excel_path)
+            QMessageBox.critical(self, "excel read error", str(exc))
             self.reject()
             return
 
-        self._setup_ui()
+        # widgets that are only shown in special-case mode
+        self._special_widgets: List[QWidget] = []
+        # map control keys to their widgets for retrieving values
+        self.controls: dict[str, QWidget] = {}
+        self._build_ui()
 
-    def _setup_ui(self) -> None:
-        """Configure dialog widgets."""
-        # Fonts
+    def _build_ui(self) -> None:
+        # set fonts for title and body text
         font_title = QFont("Arial", 12, QFont.Bold)
         font_body  = QFont("Arial", 10)
 
         self.setWindowTitle("Excel File Options")
-        layout = QVBoxLayout(self)
+        main_vbox = QVBoxLayout(self)
 
-        # Header label
+        # header label for dialog title
         header = QLabel("Excel File Options")
         header.setFont(font_title)
-        layout.addWidget(header)
+        header.setAlignment(Qt.AlignCenter)
+        main_vbox.addWidget(header)
 
-        # Base vs Special case radio buttons
+        # radio buttons for choosing base vs special case
         self.base_rb    = QRadioButton("Base Case (no extra spec)")
         self.special_rb = QRadioButton("Special Case (specify)")
-        self.base_rb.setFont(font_body)
-        self.special_rb.setFont(font_body)
+        for rb in (self.base_rb, self.special_rb):
+            rb.setFont(font_body)
+            main_vbox.addWidget(rb)
         self.base_rb.setChecked(True)
-        layout.addWidget(self.base_rb)
-        layout.addWidget(self.special_rb)
 
-        # Grid for special-case entries
+        # grid layout for special-case inputs
         grid = QGridLayout()
-        labels = [("Sheet Name", QComboBox, self.sheets),
-                  ("Starting Row", QLineEdit, None),
-                  ("Column Range", QLineEdit, None)]
-        self.controls = {}
-        for row, (lbl_text, widget_cls, items) in enumerate(labels):
-            lbl = QLabel(lbl_text)
+        rows = [
+            ("Sheet Name",   QComboBox, self.sheets),
+            ("Starting Row", QLineEdit, None),
+            ("Column Range", QLineEdit, None),
+        ]
+
+        for r, (label_text, widget_cls, items) in enumerate(rows):
+            lbl = QLabel(label_text)
             lbl.setFont(font_body)
-            grid.addWidget(lbl, row, 0)
+            grid.addWidget(lbl, r, 0)
+            self._special_widgets.append(lbl)
+
             if widget_cls is QComboBox:
-                cbo = widget_cls()
-                cbo.setFont(font_body)
-                cbo.addItems(items)
-                grid.addWidget(cbo, row, 1)
-                self.controls['sheet'] = cbo
+                w = widget_cls()
+                w.addItems(items)
+                self.controls["sheet"] = w
             else:
-                edit = widget_cls()
-                edit.setFont(font_body)
-                grid.addWidget(edit, row, 1)
-                if lbl_text.startswith("Starting"):
-                    self.controls['row'] = edit
-                else:
-                    self.controls['cols'] = edit
-        # Column labeling options
-        self.unlabeled_rb = QRadioButton("Not labeled Columns")
-        self.labeled_rb   = QRadioButton("Labeled Columns")
-        self.unlabeled_rb.setFont(font_body)
-        self.labeled_rb.setFont(font_body)
-        btn_group = QButtonGroup(self)
-        btn_group.addButton(self.unlabeled_rb)
-        btn_group.addButton(self.labeled_rb)
+                w = widget_cls()
+                key = "row" if label_text.startswith("Starting") else "cols"
+                self.controls[key] = w
+
+            w.setFont(font_body)
+            grid.addWidget(w, r, 1)
+            self._special_widgets.append(w)
+
+        # radio buttons for column labeling options
+        self.unlabeled_rb = QRadioButton("Columns not labeled")
+        self.labeled_rb   = QRadioButton("Columns labeled")
+        for rb in (self.unlabeled_rb, self.labeled_rb):
+            rb.setFont(font_body)
+            self._special_widgets.append(rb)
+
+        group = QButtonGroup(self)
+        group.addButton(self.unlabeled_rb)
+        group.addButton(self.labeled_rb)
         self.unlabeled_rb.setChecked(True)
+
         grid.addWidget(self.unlabeled_rb, 3, 0)
         grid.addWidget(self.labeled_rb,   3, 1)
-        layout.addLayout(grid)
 
-        # Hide special-case inputs until needed
-        self._toggle_special(False)
-        self.base_rb.toggled.connect(lambda checked: self._toggle_special(not checked))
+        main_vbox.addLayout(grid)
 
-        # OK button
+        # ok button to confirm selection and close dialog
         ok_btn = QPushButton("OK")
         ok_btn.setFont(font_title)
         ok_btn.clicked.connect(self._on_ok)
-        layout.addWidget(ok_btn)
+        ok_btn.setDefault(True)
+        main_vbox.addWidget(ok_btn, alignment=Qt.AlignCenter)
+
+        # hide special-case widgets until user selects special mode
+        self._toggle_special(False)
+        self.base_rb.toggled.connect(
+            lambda checked: self._toggle_special(not checked)
+        )
 
     def _toggle_special(self, show: bool) -> None:
-        """Show or hide special-case input fields."""
-        for widget in (*self.controls.values(), self.unlabeled_rb, self.labeled_rb):
-            widget.setVisible(show)
-
+        """show or hide every widget relevant to special-case mode"""
+        for w in self._special_widgets:
+            w.setVisible(show)
+        self.adjustSize()
+        
     def _on_ok(self) -> None:
-        """Validate inputs and close the dialog."""
+        """validate special-case inputs or accept base-case directly"""
         if self.base_rb.isChecked():
+            self._labeled = False
             self.accept()
             return
-        cols = self.controls['cols'].text().strip()
-        row  = self.controls['row'].text().strip()
+
+        cols = self.controls["cols"].text().strip()
+        row  = self.controls["row"].text().strip()
+
         try:
             validate_special_case(cols, row)
-        except InvalidExcelFormatError as e:
-            QMessageBox.warning(self, "Invalid Input", str(e))
+        except InvalidExcelFormatError as exc:
+            QMessageBox.warning(self, "invalid input", str(exc))
             return
+        
+        self._labeled = self.labeled_rb.isChecked()
         self.accept()
 
     def get_params(self) -> Tuple[str, str, str]:
         """
-        Return (sheet_name, row_text, column_range).
-        Base Case -> (first_sheet, "", "").
-        Special Case -> selected values.
+        return (sheet, starting_row, column_range, labeled_flag)
+
+        base case: (first_sheet, "", "")
+        special case: values chosen by user
         """
         if self.base_rb.isChecked():
-            return (self.sheets[0], "", "")
+            return self.sheets[0], "", ""
         return (
-            self.controls['sheet'].currentText(),
-            self.controls['row'].text().strip(),
-            self.controls['cols'].text().strip(),
+            self.controls["sheet"].currentText(),
+            self.controls["row"].text().strip(),
+            self.controls["cols"].text().strip(),
+            self.labeled_rb.isChecked()
         )
