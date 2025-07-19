@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from py2dcos.config.resources import CalcMethod
 
 class TwoDCorrelation:
     """
@@ -39,9 +40,9 @@ class TwoDCorrelation:
             noda_matrix[i, :] = left + right
         return noda_matrix
 
-    def sync(self, method="HT"):
+    def sync(self, method: CalcMethod = CalcMethod.HT):
         # compute synchronous correlation map based on chosen method
-        if method == "HT":
+        if method is CalcMethod.HT:
             # direct matrix multiplication formula normalised by number of variables
             factor = float(len(self.spec1.columns) - 1)
             self.syncr = pd.DataFrame(
@@ -49,7 +50,7 @@ class TwoDCorrelation:
                 index=self.spec1.index,
                 columns=self.spec2.index
             )
-        elif method == "FFT":
+        elif method is CalcMethod.FFT:
             # use fft to transform and correlate in frequency domain
             scale = (float(self.spec1.shape[1])) ** 0.5
             xfft = np.fft.fft(self.spec1.values, axis=1) / scale
@@ -63,9 +64,9 @@ class TwoDCorrelation:
             )
         return self.syncr
 
-    def async_(self, method="HT"):
+    def async_(self, method: CalcMethod = CalcMethod.HT):
         # compute asynchronous correlation map based on chosen method
-        if method == "HT":
+        if method is CalcMethod.HT:
             # apply hilbert-based nodal weights between spectra
             factor = float(len(self.spec1.columns) - 1)
             self.asyncr = pd.DataFrame(
@@ -73,7 +74,7 @@ class TwoDCorrelation:
                 index=self.spec1.index,
                 columns=self.spec2.index
             )
-        elif method == "FFT":
+        elif method is CalcMethod.FFT:
             # use fft to obtain imaginary part for asynchronous correlation
             scale = (float(self.spec1.shape[1])) ** 0.5
             xfft = np.fft.fft(self.spec1.values, axis=1) / scale

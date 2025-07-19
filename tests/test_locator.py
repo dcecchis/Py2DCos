@@ -5,7 +5,7 @@ matplotlib.use("Agg")
 from matplotlib import ticker
 import pytest
 
-from py2dcos.core.locator import define_locator
+from py2dcos.plotting.backends.locator import define_locator
 
 
 @pytest.mark.parametrize(

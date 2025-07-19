@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from py2dcos.core.correlation_math import TwoDCorrelation
+from py2dcos.core.math.correlation_math import TwoDCorrelation
 
 
 def _rand_spec(n_rows=40, n_cols=6, seed=0):

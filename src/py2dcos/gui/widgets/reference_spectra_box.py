@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import QRadioButton, QGridLayout
 from PyQt5.QtCore    import pyqtSignal, Qt
 from py2dcos.config.resources import RefSpectra
+from py2dcos.gui.state.gui_snapshot import GuiSnapshot
+from py2dcos.types             import MathSettings
 from .base_box import BaseBox
 
 class ReferenceSpectraBox(BaseBox):
@@ -13,8 +15,8 @@ class ReferenceSpectraBox(BaseBox):
     # notify main window when user picks a different reference method
     state_changed = pyqtSignal(dict)
 
-    def __init__(self, state, parent=None):
-        super().__init__("Reference Spectra", state, parent)
+    def __init__(self, snapshot: GuiSnapshot, parent=None):
+        super().__init__("Reference Spectra", snapshot, parent)
 
         # grid layout ensures buttons line up neatly in two rows
         grid = QGridLayout()
@@ -26,6 +28,12 @@ class ReferenceSpectraBox(BaseBox):
         self.initial_button = QRadioButton("initial")
         self.final_button   = QRadioButton("final")
 
+        # add buttons to the grid in logical order
+        grid.addWidget(self.mean_button,    0, 0)
+        grid.addWidget(self.zero_button,    0, 1)
+        grid.addWidget(self.initial_button, 1, 0)
+        grid.addWidget(self.final_button,   1, 1)
+
         # collect controls so we can block signals during programmatic updates
         self._controls = [
             self.mean_button,
@@ -34,49 +42,38 @@ class ReferenceSpectraBox(BaseBox):
             self.final_button
         ]
 
-        # set initial selection to match current gui state
-        current = state.ref_spectra
-        self.mean_button   .setChecked(current is RefSpectra.MEAN)
-        self.zero_button   .setChecked(current is RefSpectra.ZERO)
-        self.initial_button.setChecked(current is RefSpectra.INITIAL)
-        self.final_button  .setChecked(current is RefSpectra.FINAL)
+        # mirror initial snapshot
+        self._apply_snapshot(snapshot)
 
-        # add buttons to the grid in logical order
-        grid.addWidget(self.mean_button,    0, 0)
-        grid.addWidget(self.zero_button,    0, 1)
-        grid.addWidget(self.initial_button, 1, 0)
-        grid.addWidget(self.final_button,   1, 1)
+        # connect GUI → emit
+        for rb in self._controls:
+            rb.toggled.connect(self._emit_math)        
 
-        # connect each toggle to its handler to emit the correct enum value
-        self.mean_button.toggled.connect   (self._on_mean)
-        self.zero_button.toggled.connect   (self._on_zero)
-        self.initial_button.toggled.connect(self._on_initial)
-        self.final_button.toggled.connect  (self._on_final)
-
-    def update_from_state(self, state):
+    def update_from_snapshot(self, snap):
         # block signals to prevent handlers firing when syncing controls
+        super().update_from_snapshot(snap)
         with self.block_signals(*self._controls):
-            self.mean_button   .setChecked(state.ref_spectra is RefSpectra.MEAN)
-            self.zero_button   .setChecked(state.ref_spectra is RefSpectra.ZERO)
-            self.initial_button.setChecked(state.ref_spectra is RefSpectra.INITIAL)
-            self.final_button  .setChecked(state.ref_spectra is RefSpectra.FINAL)
+            self._apply_snapshot(snap)
 
-    def _on_mean(self, checked: bool):
-        # only emit when the mean option is activated
-        if checked:
-            self.state_changed.emit({'ref_spectra': RefSpectra.MEAN})
+    def _apply_snapshot(self, snapshot: GuiSnapshot):
+        m = RefSpectra(snapshot.math.ref)
+        self.mean_button   .setChecked(m is RefSpectra.MEAN)
+        self.zero_button   .setChecked(m is RefSpectra.ZERO)
+        self.initial_button.setChecked(m is RefSpectra.INITIAL)
+        self.final_button  .setChecked(m is RefSpectra.FINAL)
 
-    def _on_zero(self, checked: bool):
-        # only emit when the zero option is activated
-        if checked:
-            self.state_changed.emit({'ref_spectra': RefSpectra.ZERO})
+    def _emit_math(self, checked: bool):
+        if not checked:                        # ignore “off” transitions
+            return
 
-    def _on_initial(self, checked: bool):
-        # only emit when the initial option iss activated
-        if checked:
-            self.state_changed.emit({'ref_spectra': RefSpectra.INITIAL})
+        if self.mean_button.isChecked():
+            new_ref = RefSpectra.MEAN
+        elif self.zero_button.isChecked():
+            new_ref = RefSpectra.ZERO
+        elif self.initial_button.isChecked():
+            new_ref = RefSpectra.INITIAL
+        else:
+            new_ref = RefSpectra.FINAL
 
-    def _on_final(self, checked: bool):
-        # oew final option is activated
-        if checked:
-            self.state_changed.emit({'ref_spectra': RefSpectra.FINAL})
+        new_math: MathSettings = self.snapshot.math.update(ref=new_ref)
+        self.state_changed.emit({"math": new_math})

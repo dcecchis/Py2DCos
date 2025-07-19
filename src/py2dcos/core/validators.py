@@ -1,4 +1,5 @@
 import re
+from py2dcos.config.resources import CalcMethod
 
 # define error when user requests a correlation method that isn’t implemented yet
 class UnsupportedMethodError(ValueError):
@@ -14,7 +15,7 @@ class InvalidExcelFormatError(ValueError):
 
 def validate_method(method):
     # only hilbert transform is supported at this time
-    if method == "HT":
+    if method is CalcMethod.HT:
         return
     # inform user that other methods are planned but not yet available
     raise UnsupportedMethodError(f"the method '{method}' is not yet supported.")

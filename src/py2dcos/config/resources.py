@@ -1,11 +1,8 @@
 """
-resources.py
--------------
-Central repository for GUI defaults and shared resources.
-This file must stay lightweight: no PyQt or Matplotlib imports here.
+Central repository defaults and shared resources.
 """
 
-from enum import Enum, auto
+from enum import Enum
 from dataclasses import dataclass
 
 # public constants: lists for combo-box defaults
@@ -23,6 +20,9 @@ CMAP_LIST = [
 # locator algorithms for contour placement
 LOCATOR_CHOICES = ["linear", "maxN", "log"]
 
+# canvas background
+CANVAS_BACKGROUND = "#f0f0f0"
+
 # numeric bounds for contour counts and intensity sliders
 MIN_CONTOURS = 1
 MAX_CONTOURS = 40
@@ -30,6 +30,10 @@ MIN_INTENSITY = 0
 MAX_INTENSITY = 100
 MIN_LINE_INTENSITY = 0
 MAX_LINE_INTENSITY = 100
+
+# define slider range for gaussian smoothing to prevent invalid values
+MIN_GAUSSIAN = 0
+MAX_GAUSSIAN = 5
 
 # enums define discrete configuration options to avoid magic strings
 
@@ -47,8 +51,11 @@ class RefSpectra(Enum):
     # reference spectrum choices for baseline correction
     MEAN = "mean"
     ZERO = "zero"
+    MIN = "min"
+    MAX = "max"
     INITIAL = "ini"
     FINAL = "end"
+
 
 class Diagonal(Enum):
     # diagonal selection for synchronous/asynchronous plots

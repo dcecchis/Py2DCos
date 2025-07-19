@@ -1,15 +1,17 @@
 from contextlib import contextmanager
+from py2dcos.gui.state.gui_snapshot import GuiSnapshot
 from PyQt5.QtWidgets import QGroupBox, QVBoxLayout
 from PyQt5.QtCore import pyqtSignal, QSignalBlocker
+
 
 class BaseBox(QGroupBox):
     # base class for collapsible gui sections; captures initial state and notifies on changes
     state_changed = pyqtSignal(dict)
 
-    def __init__(self, title: str, state, parent=None):
+    def __init__(self, title: str, snapshot: GuiSnapshot, parent=None):
         # initialize the group box with a title and keep a reference to gui state for control setup
         super().__init__(title, parent)
-        self.state = state
+        self.snapshot = snapshot
 
         # apply a consistent font style across all child widgets for uniform appearance
         self.setStyleSheet("""
@@ -27,9 +29,9 @@ class BaseBox(QGroupBox):
         # create a vertical layout to stack child controls in order
         self.lay = QVBoxLayout(self)
 
-    def update_from_state(self, state):
+    def update_from_snapshot(self, snap):
         # intended for subclasses: refresh control values to reflect the new gui state
-        pass
+        self.snapshot = snap
 
     @contextmanager
     def block_signals(self, *widgets):

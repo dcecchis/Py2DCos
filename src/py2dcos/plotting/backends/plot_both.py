@@ -1,27 +1,30 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
-
-from py2dcos.core.locator import define_locator
-from py2dcos.plotting.backends.base import PlotBase
-from py2dcos.plotting.settings import PlotSettings
+from py2dcos.plotting.backends.locator import define_locator
+from py2dcos.config.resources import PeaksSigns
+from py2dcos.config.resources import AxisDirection
+from py2dcos.config.resources import Diagonal
+from py2dcos.config.resources import CANVAS_BACKGROUND
+from py2dcos.types.plot_settings import PlotSettings
 
 if TYPE_CHECKING:
-    from py2dcos.core.correlation_model import CorrelationModel
+    from py2dcos.core.math.correlation_model import CorrelationModel
+    from matplotlib.figure import Figure
 
-class Both2DPlot(PlotBase):
-    # draw synchronous and asynchronous correlation maps side by side with reference panels
-
-    def draw(
-        self,
-        model: "CorrelationModel",
+def plot_both2d(
+        model: CorrelationModel,
         settings: PlotSettings,
-    ) -> plt.Figure:
-        # prepare the figure and background color
-        fig = self.figure
-        fig.set_facecolor("#f0f0f0")
+        *,
+        figure: Figure | None = None) -> Figure:
+            
+
+        fig = figure or plt.figure()
+        fig.clf()
+        fig.set_facecolor(CANVAS_BACKGROUND)
 
         # define default line width and font size for consistency
         linewidth, fontsize = 0.9, 8
@@ -36,9 +39,9 @@ class Both2DPlot(PlotBase):
         
         # apply peak-sign mask if user requested only pos or neg peaks
         def mask(data: np.ndarray) -> np.ndarray:
-            if settings.peaks == "positive":
+            if settings.peaks is PeaksSigns.POSITIVE:
                 return np.where(data > 0, data, np.nan)
-            if settings.peaks == "negative":
+            if settings.peaks is PeaksSigns.NEGATIVE:
                 return np.where(data < 0, data, np.nan)
             return data
 
@@ -180,7 +183,7 @@ class Both2DPlot(PlotBase):
             )
 
         # overlay main or anti diagonal on sync map and plot it below
-        if settings.sync_diag == "main":
+        if settings.sync_diag is Diagonal.MAIN:
             diag_s = sync.diagonal(0)
             ax['sync'].plot(xi, yi, color='k', alpha=0.65, linewidth=linewidth)
         else:
@@ -191,7 +194,7 @@ class Both2DPlot(PlotBase):
         ax['lower'].axhline(0, color='k', alpha=0.4)
 
         # overlay main or anti diagonal on async map and plot it below
-        if settings.async_diag == "main":
+        if settings.async_diag is Diagonal.MAIN:
             diag_a = async_.diagonal(0)
             ax['async_'].plot(xi, yi, color='k', alpha=0.65, linewidth=linewidth)
         else:
@@ -205,7 +208,7 @@ class Both2DPlot(PlotBase):
         for key in ('sync', 'async_'):
             ax[key].set_xlim(xi.min(), xi.max())
             ax[key].set_ylim(yi.min(), yi.max())
-            if settings.x_axis == "decreasing":
+            if settings.x_axis is AxisDirection.DECREASING:
                 ax[key].invert_xaxis()
 
         # enable interactive coordinate display on panels

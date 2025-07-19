@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 """PyQt5 widget for selecting one or two input files used by Py2DCoS.
-
-This refactor extracts the duplicated logic of the two file‑selection slots
-into a single private helper ``_choose_file``.  Behaviour is identical to the
-previous version but the code is now DRY and easier to test/extend.
 """
 
 from pathlib import Path
 import logging
-
+from typing   import Optional
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QDialog, QPushButton
 
 from py2dcos.config.resources import CorrType
+from py2dcos.gui.state.gui_snapshot import GuiSnapshot
+from py2dcos.types           import InputFile, ExcelParams
 from .excel_params_dialog import ExcelParamsDialog
 from .base_box import BaseBox
 
@@ -21,60 +19,49 @@ logger = logging.getLogger(__name__)
 
 
 class InputFilesBox(BaseBox):
-    """Collapsible section that lets the user pick one or two input files.
-
-    It emits a *flattened* ``dict`` describing the chosen files so that the
-    main window can merge those changes into the global ``GuiState``.  Keys:
-
-    ``filename1`` / ``filename2``
-        Tuple ``(path, fmt)`` where *fmt* is the lower‑case extension.
-    ``format1`` / ``format2``
-        String with the extension alone (``csv``, ``txt``, ``xlsx`` …).
-    ``excel_params1`` / ``excel_params2``
-        Tuple ``(sheet, row, cols, labeled)`` only when *fmt* == ``xlsx``.
+    """
+    Two file-pickers.  Emits {'file1': InputFile} or {'file2': InputFile}.
     """
 
     state_changed = pyqtSignal(dict)
 
 
     # Qt lifecycle
-    def __init__(self, state, parent=None):
-        super().__init__("Input", state, parent)
+    def __init__(self, snapshot: GuiSnapshot, parent=None):
+        super().__init__("Input", snapshot, parent)
 
         # primary file
-        self.file1_button = QPushButton("Choose your file")
-        self.file1_button.setMinimumSize(250, 30)
-        self.lay.addWidget(self.file1_button)
+        self.file1_btn = QPushButton("Choose your file")
+        self.file1_btn.setMinimumSize(250, 30)
+        self.file1_btn.clicked.connect(lambda: self._choose_file(idx=1))
+        self.lay.addWidget(self.file1_btn)
 
         # secondary file (only for heterocorrelation)
-        self.file2_button = QPushButton("Choose your file")
-        self.file2_button.setMinimumSize(250, 30)
-        self.file2_button.hide()
-        self.lay.addWidget(self.file2_button)
+        self.file2_btn = QPushButton("Choose your file")
+        self.file2_btn.setMinimumSize(250, 30)
+        self.file2_btn.hide()
+        self.file2_btn.clicked.connect(lambda: self._choose_file(idx=2))
+        self.lay.addWidget(self.file2_btn)
 
-        # connect both buttons to the same helper via lambda index
-        self.file1_button.clicked.connect(lambda: self._choose_file(1))
-        self.file2_button.clicked.connect(lambda: self._choose_file(2))
+        self._apply_snapshot(snapshot)
 
     # Public API 
-    def update_from_state(self, state):  # noqa: D401 – Qt callback, no return
-        """Synchronise button labels / visibility with the ``GuiState``."""
-        if state.filename1:
-            self.file1_button.setText(Path(state.filename1[0]).name)
+    def update_from_snapshot(self, snap: GuiSnapshot):  # noqa: D401 – Qt callback, no return
+        super().update_from_snapshot(snap)
+        self._apply_snapshot(snap)
 
-        # show second selector only in hetero‑correlation mode
-        self.file2_button.setVisible(state.corr_type is CorrType.HETERO)
+    def _apply_snapshot(self, snap: GuiSnapshot):
+        if snap.file1:
+            self.file1_btn.setText(snap.file1.name)
+            self.file1_btn.setToolTip(snap.file1.path)
+        if snap.file2:
+            self.file2_btn.setText(snap.file2.name)
+            self.file2_btn.setToolTip(snap.file2.path)
 
-        if state.filename2:
-            self.file2_button.setText(Path(state.filename2[0]).name)
-
+        # visibility
+        self.file2_btn.setVisible(snap.corr_type is CorrType.HETERO)
 
     def _choose_file(self, idx: int) -> None:
-        """Common slot for *both* buttons.
-
-        idx is 1 or 2 and is used to build dynamic payload keys and to
-        pick the correct button attribute via getattr
-        """
         try:
             path, _ = QFileDialog.getOpenFileName(
                 self,
@@ -85,25 +72,27 @@ class InputFilesBox(BaseBox):
             if not path:
                 return  # user cancelled
 
-            p = Path(path)
-            fmt = p.suffix.lstrip(".").lower()
+            ext = Path(path).suffix.lstrip(".").lower()
 
-            payload = {f"filename{idx}": (path, fmt), f"format{idx}": fmt}
+            excel_params: Optional[ExcelParams] = None
 
             # Excel files need extra parameters via a modal dialog
-            if fmt == "xlsx":
+            if ext == "xlsx":
                 dlg = ExcelParamsDialog(path, self)
                 if dlg.exec_() != QDialog.Accepted:
                     return  # user aborted Excel‑params dialog
-                payload[f"excel_params{idx}"] = dlg.get_params()
+                excel_params = dlg.get_params()
 
-            # update button label and tooltip immediately
-            button: QPushButton = getattr(self, f"file{idx}_button")
-            button.setText(p.name)
-            button.setToolTip(path)
+            file_obj = InputFile(path=path, extension=ext,
+                                 excel_params=excel_params)
+            
+            # update button immediately
+            btn = self.file1_btn if idx == 1 else self.file2_btn
+            btn.setText(Path(path).name)
+            btn.setToolTip(path)
 
-            # broadcast state change
-            self.state_changed.emit(payload)
+            # emit delta
+            self.state_changed.emit({f"file{idx}": file_obj})
 
         except Exception as exc:  # noqa: BLE001 – want *any* exception logged
             logger.exception("Error selecting file %s", idx)

@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from py2dcos.core.io import reader, checkHeader, checklabels, interp
+from py2dcos.core.io.io import reader, checkHeader, checklabels, interp
 
 
 # reader: file → DataFrame round-trip

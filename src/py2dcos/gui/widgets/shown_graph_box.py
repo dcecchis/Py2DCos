@@ -1,6 +1,8 @@
 from PyQt5.QtWidgets import QRadioButton, QHBoxLayout, QButtonGroup
 from PyQt5.QtCore    import pyqtSignal
 from py2dcos.config.resources import ShownGraph, PeaksSigns
+from py2dcos.gui.state.gui_snapshot import GuiSnapshot
+from py2dcos.types import PlotSettings
 from .base_box import BaseBox
 
 class ShownGraphBox(BaseBox):
@@ -15,18 +17,17 @@ class ShownGraphBox(BaseBox):
     # notify main window when user changes graph or peak sign selection
     state_changed = pyqtSignal(dict)
 
-    def __init__(self, state, parent=None):
+    def __init__(self, snapshot: GuiSnapshot, parent=None):
         # collapse under 'shown graph' header and store initial state
-        super().__init__("shown graph", state, parent)
+        super().__init__("Shown graph", snapshot, parent)
 
         # arrange graph selection radios in one row for clear comparison
         graph_layout = QHBoxLayout()
         self.sync_graph  = QRadioButton("Sync")
         self.async_graph = QRadioButton("Async")
         self.both_graph  = QRadioButton("Both")
-        graph_layout.addWidget(self.sync_graph)
-        graph_layout.addWidget(self.async_graph)
-        graph_layout.addWidget(self.both_graph)
+        for btn in (self.sync_graph, self.async_graph, self.both_graph):
+            graph_layout.addWidget(btn)
         self.lay.addLayout(graph_layout)
 
         # ensure only one graph option can be active at a time
@@ -40,16 +41,9 @@ class ShownGraphBox(BaseBox):
         self.positive = QRadioButton("Positives")
         self.negative = QRadioButton("Negatives")
         self.all_signs = QRadioButton("All")
-        signs_layout.addWidget(self.positive)
-        signs_layout.addWidget(self.negative)
-        signs_layout.addWidget(self.all_signs)
+        for btn in (self.positive, self.negative, self.all_signs):
+            signs_layout.addWidget(btn)
         self.lay.addLayout(signs_layout)
-
-        # collect controls for signal-blocking when syncing state
-        self._controls = [
-            self.sync_graph, self.async_graph, self.both_graph,
-            self.positive,   self.negative,    self.all_signs
-        ]
 
         # group peak sign buttons to enforce single selection
         self.signs_group = QButtonGroup(self)
@@ -57,59 +51,54 @@ class ShownGraphBox(BaseBox):
             self.signs_group.addButton(btn)
         self.signs_group.setExclusive(True)
 
-        # initialize radio buttons to reflect current gui state
-        current_graph = state.shown_graph
-        self.sync_graph .setChecked(current_graph is ShownGraph.SYNC)
-        self.async_graph.setChecked(current_graph is ShownGraph.ASYNC)
-        self.both_graph .setChecked(current_graph is ShownGraph.BOTH)
+        # collect controls for signal-blocking when syncing state
+        self._controls = [
+            self.sync_graph, self.async_graph, self.both_graph,
+            self.positive,   self.negative,    self.all_signs
+        ]
 
-        current_signs = state.peaks_signs
-        self.positive .setChecked(current_signs is PeaksSigns.POSITIVE)
-        self.negative .setChecked(current_signs is PeaksSigns.NEGATIVE)
-        self.all_signs.setChecked(current_signs is PeaksSigns.ALL)
+        # initial mirror
+        self._apply_snapshot(snapshot)
 
-        # connect user toggles to handlers that emit the new state
-        self.sync_graph.toggled.connect(self._on_shown_graph)
-        self.async_graph.toggled.connect(self._on_shown_graph)
-        self.both_graph.toggled.connect(self._on_shown_graph)
-        self.positive.toggled.connect(self._on_peaks_signs)
-        self.negative.toggled.connect(self._on_peaks_signs)
-        self.all_signs.toggled.connect(self._on_peaks_signs)
+        # connect GUI → emit
+        for rb in self._controls:
+            rb.toggled.connect(self._emit_plot)
 
-    def update_from_state(self, state):
+
+    def update_from_snapshot(self, snapshot: GuiSnapshot):
         # block signals so updating ui does not trigger handlers
+        super().update_from_snapshot(snapshot)
         with self.block_signals(*self._controls):
-            # sync/async/both selection sync
-            self.sync_graph .setChecked(state.shown_graph is ShownGraph.SYNC)
-            self.async_graph.setChecked(state.shown_graph is ShownGraph.ASYNC)
-            self.both_graph .setChecked(state.shown_graph is ShownGraph.BOTH)
-            # positive/negative/all peak signs sync
-            self.positive .setChecked(state.peaks_signs is PeaksSigns.POSITIVE)
-            self.negative .setChecked(state.peaks_signs is PeaksSigns.NEGATIVE)
-            self.all_signs.setChecked(state.peaks_signs is PeaksSigns.ALL)
+            self._apply_snapshot(snapshot)
 
-    def _on_shown_graph(self, checked: bool):
-        # only act when a button is turned on to identify new graph choice
+    def _apply_snapshot(self, snapshot: GuiSnapshot):
+        p = snapshot.plot
+        # sync/async/both selection sync
+        self.sync_graph .setChecked(p.shown_graph is ShownGraph.SYNC)
+        self.async_graph.setChecked(p.shown_graph is ShownGraph.ASYNC)
+        self.both_graph .setChecked(p.shown_graph is ShownGraph.BOTH)
+        # positive/negative/all peak signs sync
+        self.positive .setChecked(p.peaks is PeaksSigns.POSITIVE)
+        self.negative .setChecked(p.peaks is PeaksSigns.NEGATIVE)
+        self.all_signs.setChecked(p.peaks is PeaksSigns.ALL)
+
+
+    def _emit_plot(self, checked: bool):
         if not checked:
             return
-        if self.sync_graph.isChecked():
-            val = ShownGraph.SYNC
-        elif self.async_graph.isChecked():
-            val = ShownGraph.ASYNC
-        else:
-            val = ShownGraph.BOTH
-        # emit minimal payload indicating what changed
-        self.state_changed.emit({'shown_graph': val})
 
-    def _on_peaks_signs(self, checked: bool):
-        # only act when a button is turned on to identify new peak sign filter
-        if not checked:
-            return
-        if self.positive.isChecked():
-            val = PeaksSigns.POSITIVE
-        elif self.negative.isChecked():
-            val = PeaksSigns.NEGATIVE
-        else:
-            val = PeaksSigns.ALL
-        # notify listeners about updated peak sign preference
-        self.state_changed.emit({'peaks_signs': val})
+        # build new PlotSettings
+        p_old = self.snapshot.plot
+        p_new = p_old.update(
+            shown_graph = (
+                ShownGraph.SYNC  if self.sync_graph.isChecked() else
+                ShownGraph.ASYNC if self.async_graph.isChecked() else
+                                  ShownGraph.BOTH
+            ),
+            peaks = (
+                PeaksSigns.POSITIVE if self.positive.isChecked() else
+                PeaksSigns.NEGATIVE if self.negative.isChecked() else
+                                     PeaksSigns.ALL
+            ),
+        )
+        self.state_changed.emit({"plot": p_new})

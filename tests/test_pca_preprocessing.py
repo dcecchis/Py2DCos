@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 from pathlib import Path
 
-from py2dcos.core.pca_preprocessing import PCAProcessor
+from py2dcos.core.math.pca_preprocessing import PCAProcessor
 
 
 def _rand_df(n_rows=30, n_cols=5, seed=0):

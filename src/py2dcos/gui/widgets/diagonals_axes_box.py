@@ -1,25 +1,58 @@
 from PyQt5.QtWidgets import QLabel, QRadioButton, QGridLayout, QButtonGroup
 from PyQt5.QtCore    import Qt, pyqtSignal
 from py2dcos.config.resources import Diagonal, AxisDirection
+from py2dcos.gui.state.gui_snapshot import GuiSnapshot
+from py2dcos.types             import PlotSettings
 from .base_box import BaseBox
 
 class DiagonalsAxesBox(BaseBox):
     """
     section for choosing sync/async diagonals and x-axis direction.
-
-    emits state_changed with keys:
-      - 'sync_diag': diagonal enum
-      - 'async_diag': diagonal enum
-      - 'x_axis': axis direction enum
     """
     state_changed = pyqtSignal(dict)
 
-    def __init__(self, state, parent=None):
-        super().__init__("Diagonals and Axes", state, parent)
+    def __init__(self, snapshot: GuiSnapshot, parent=None):
+        super().__init__("Diagonals and Axes", snapshot, parent)
 
+        self._buid_ui()
+        self._apply_snapshot(snapshot)
+
+        for i in self._controls:
+            i.toggled.connect(self._emit_plot)
+
+
+    def update_from_snapshot(self, snap: GuiSnapshot) -> None:
+        # block signals so we don’t trigger handlers while syncing ui controls
+        super().update_from_snapshot(snap)
+        with self.block_signals(*self._controls):
+            self._apply_snapshot(snap)
+
+    def _apply_snapshot(self, snap: GuiSnapshot) -> None:
+        self.sync_main .setChecked(snap.plot.sync_diag  is Diagonal.MAIN)
+        self.sync_anti .setChecked(snap.plot.sync_diag  is Diagonal.ANTI)
+        self.async_main.setChecked(snap.plot.async_diag is Diagonal.MAIN)
+        self.async_anti.setChecked(snap.plot.async_diag is Diagonal.ANTI)
+        self.x_incr    .setChecked(snap.plot.x_axis    is AxisDirection.INCREASING)
+        self.x_decr    .setChecked(snap.plot.x_axis    is AxisDirection.DECREASING)
+    
+    def _emit_plot(self, checked: bool):
+        if not checked:
+            return                               # ignore the “off” click
+
+        new_plot = self.snapshot.plot.update(
+            sync_diag  = Diagonal.MAIN if self.sync_main.isChecked()  else Diagonal.ANTI,
+            async_diag = Diagonal.MAIN if self.async_main.isChecked() else Diagonal.ANTI,
+            x_axis     = AxisDirection.INCREASING if self.x_incr.isChecked()
+                         else AxisDirection.DECREASING,
+        )
+        self.state_changed.emit({"plot": new_plot})
+
+    def _buid_ui(self):
         # use grid layout so labels and options align in rows and columns
         grid = QGridLayout()
+        #grid.setColumnMinimumWidth(0, 90)
         self.lay.addLayout(grid)
+
 
         # row labels for each setting
         grid.addWidget(QLabel("Sync:"),   0, 0)
@@ -63,47 +96,3 @@ class DiagonalsAxesBox(BaseBox):
         self.xaxis_group = QButtonGroup(self)
         self.xaxis_group.addButton(self.x_incr)
         self.xaxis_group.addButton(self.x_decr)
-
-        # set initial selections to mirror current gui state
-        self.sync_main .setChecked(state.sync_diag  is Diagonal.MAIN)
-        self.sync_anti .setChecked(state.sync_diag  is Diagonal.ANTI)
-        self.async_main.setChecked(state.async_diag is Diagonal.MAIN)
-        self.async_anti.setChecked(state.async_diag is Diagonal.ANTI)
-        self.x_incr    .setChecked(state.x_axis    is AxisDirection.INCREASING)
-        self.x_decr    .setChecked(state.x_axis    is AxisDirection.DECREASING)
-
-        # connect toggles to handlers that emit the appropriate state change
-        self.sync_main.toggled.connect(self._on_sync)
-        self.sync_anti.toggled.connect(self._on_sync)
-        self.async_main.toggled.connect(self._on_async)
-        self.async_anti.toggled.connect(self._on_async)
-        self.x_incr.toggled.connect(self._on_x_axis)
-        self.x_decr.toggled.connect(self._on_x_axis)
-
-    def update_from_state(self, state):
-        # block signals so we don’t trigger handlers while syncing ui controls
-        with self.block_signals(*self._controls):
-            self.sync_main .setChecked(state.sync_diag  is Diagonal.MAIN)
-            self.sync_anti .setChecked(state.sync_diag  is Diagonal.ANTI)
-            self.async_main.setChecked(state.async_diag is Diagonal.MAIN)
-            self.async_anti.setChecked(state.async_diag is Diagonal.ANTI)
-            self.x_incr    .setChecked(state.x_axis    is AxisDirection.INCREASING)
-            self.x_decr    .setChecked(state.x_axis    is AxisDirection.DECREASING)
-
-    def _on_sync(self, checked: bool):
-        # only emit when a button becomes checked to identify the chosen diag
-        if checked:
-            val = Diagonal.MAIN if self.sync_main.isChecked() else Diagonal.ANTI
-            self.state_changed.emit({'sync_diag': val})
-
-    def _on_async(self, checked: bool):
-        # emit new async diagonal based on which radio is active
-        if checked:
-            val = Diagonal.MAIN if self.async_main.isChecked() else Diagonal.ANTI
-            self.state_changed.emit({'async_diag': val})
-
-    def _on_x_axis(self, checked: bool):
-        # toggle x_axis direction; emit new value when selection changes
-        if checked:
-            val = AxisDirection.INCREASING if self.x_incr.isChecked() else AxisDirection.DECREASING
-            self.state_changed.emit({'x_axis': val})

@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from py2dcos.core.filters import apply_gaussian_filter, apply_node_attenuation
+from py2dcos.core.math.filters import apply_gaussian_filter, apply_node_attenuation
 
 
 def _make_random_spec(n_rows=100, n_cols=4, seed=42):

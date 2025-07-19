@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from py2dcos.core.correlation_model import CorrelationModel
+from py2dcos.core.math.correlation_model import CorrelationModel
 
 
 def _write_csv(df: pd.DataFrame, path):

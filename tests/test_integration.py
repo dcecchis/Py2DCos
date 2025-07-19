@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-from py2dcos.core.correlation_model import CorrelationModel
+from py2dcos.core.math.correlation_model import CorrelationModel
 from py2dcos.plotting.correlation_plot import CorrelationPlotter
 
 
