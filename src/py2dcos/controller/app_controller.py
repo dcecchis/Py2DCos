@@ -143,4 +143,3 @@ class AppController(QObject):
                 fn_2d = {ShownGraph.SYNC: plot_sync2d, ShownGraph.ASYNC: plot_async2d, ShownGraph.BOTH: plot_both2d}[which]
                 fig = fn_2d(self._model, snapshot.plot, figure=self.parent_figure)
                 self.fig2d_ready.emit(fig) 
-

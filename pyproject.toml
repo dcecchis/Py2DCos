@@ -31,4 +31,6 @@ dependencies = [
 py2dcos = "py2dcos.__main__:main"
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath   = ["src"]
+addopts      = "--maxfail=1 --disable-warnings -q"
+python_files = "tests/test_*.py"

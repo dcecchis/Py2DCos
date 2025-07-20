@@ -235,3 +235,13 @@ class MainWindow(QMainWindow):
         self.plot_button.setEnabled(True)
         self.btn_3d      .setEnabled(True)
         self.status_label.setText("Ready")
+
+    def closeEvent(self, event):
+        # ensure WebEnginePage is torn down before Qt shuts down
+        try:
+            page = self.webview.page()
+            page.deleteLater()
+        except Exception:
+            pass
+        self.webview.deleteLater()
+        super().closeEvent(event)

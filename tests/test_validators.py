@@ -1,5 +1,6 @@
+# tests/test_validators.py
+# -*- coding: utf-8 -*-
 import pytest
-
 from py2dcos.core.validators import (
     validate_method,
     validate_extension,
@@ -8,83 +9,60 @@ from py2dcos.core.validators import (
     UnsupportedExtensionError,
     InvalidExcelFormatError,
 )
+from py2dcos.config.resources import CalcMethod
 
-# validate_method tests
+def test_validate_method_ht():
+    # HT is supported
+    assert validate_method(CalcMethod.HT) is None
 
-def test_validate_method_accepts_ht():
-    # HT is supported and should not raise
-    validate_method("HT")
+def test_validate_method_non_ht_raises():
+    # any other method raises
+    with pytest.raises(UnsupportedMethodError) as exc:
+        validate_method(CalcMethod.FFT)
+    assert "not yet supported" in str(exc.value)
 
-
-@pytest.mark.parametrize("bad_method", ["FFT", "DWT", "", None])
-def test_validate_method_rejects_unsupported(bad_method):
-    # unsupported methods must trigger an error
-    with pytest.raises(UnsupportedMethodError):
-        validate_method(bad_method)
-
-
-# validate_extension tests
-
-@pytest.mark.parametrize(
-    "ext1, ext2",
-    [
-        ("txt", ""),
-        ("csv", ""),
-        ("xlsx", ""),
-        ("txt", "csv"),
-        ("csv", "xlsx"),
-        ("xlsx", "txt"),
-    ],
-)
-def test_validate_extension_accepts_known(ext1, ext2):
-    # known extensions should pass without exception
-    validate_extension(ext1, ext2)
-
-
-@pytest.mark.parametrize(
-    "ext1, ext2",
-    [
-        ("pdf", ""),
-        ("", ""),
-        ("txt", "pdf"),
-        ("json", "csv"),
-        ("csv", "xml"),
-    ],
-)
-def test_validate_extension_rejects_unknown(ext1, ext2):
-    # unknown extensions should raise an error
-    with pytest.raises(UnsupportedExtensionError):
+@pytest.mark.parametrize("ext1,ext2", [
+    ("txt", ""),
+    ("csv", None),
+    ("xlsx", "txt"),
+    ("csv", "xlsx"),
+])
+def test_validate_extension_valid(ext1, ext2):
+    # valid primary and (optional) secondary extensions do not raise
+    if ext2 is None:
+        validate_extension(ext1)
+    else:
         validate_extension(ext1, ext2)
 
+@pytest.mark.parametrize("invalid_ext", ["pdf", "doc", "exe"])
+def test_validate_extension_invalid_primary(invalid_ext):
+    with pytest.raises(UnsupportedExtensionError) as exc:
+        validate_extension(invalid_ext)
+    assert f"we can't handle '{invalid_ext}' files" in str(exc.value)
 
-# validate_special_case tests
+def test_validate_extension_invalid_secondary():
+    with pytest.raises(UnsupportedExtensionError) as exc:
+        validate_extension("csv", "pdf")
+    assert "we can't handle 'pdf' files" in str(exc.value)
 
-@pytest.mark.parametrize(
-    "column, row",
-    [
-        ("A:B", "1"),
-        ("AA:AB", "10"),
-        ("X:Z", "999"),
-        ("a:c", "5"),  # lower-case columns allowed
-    ],
-)
-def test_validate_special_case_accepts_well_formed(column, row):
-    # proper Excel range strings should pass
-    validate_special_case(column, row)
+@pytest.mark.parametrize("col,row", [
+    ("A:C", "1"),
+    ("AA:ZZ", "123"),
+    ("abc:DEF", "999"),
+    ("x:Y", "0"),
+])
+def test_validate_special_case_valid(col, row):
+    # valid column range and numeric row
+    assert validate_special_case(col, row) is None
 
-
-@pytest.mark.parametrize(
-    "column, row",
-    [
-        ("1:2", "1"),        # invalid column letters
-        ("A1:B2", "3"),      # embedded digits
-        ("A:B:C", "4"),      # too many parts
-        ("A:B", "row"),      # non-numeric row
-        ("", "1"),           # empty column
-        ("A:B", ""),         # empty row
-    ],
-)
-def test_validate_special_case_rejects_bad_input(column, row):
-    # malformed inputs must raise an error
+@pytest.mark.parametrize("col,row", [
+    ("A-:C", "10"),   # invalid column format
+    ("1:A", "5"),     # column contains digit
+    ("AB:CD:E", "7"), # too many parts
+    ("A:C", "1.0"),   # non-integer row
+    ("A:C", "ten"),   # non-numeric row
+    ("A C", "10"),    # space instead of colon
+])
+def test_validate_special_case_invalid(col, row):
     with pytest.raises(InvalidExcelFormatError):
-        validate_special_case(column, row)
+        validate_special_case(col, row)
