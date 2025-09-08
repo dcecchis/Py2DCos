@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt
 from py2dcos.controller.app_controller import AppController
 from py2dcos.config.resources import CorrType, ShownGraph, PeaksSigns, CalcMethod
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types import InputFile, MathSettings, PlotSettings
+from py2dcos.datatypes import InputFile, MathSettings, PlotSettings
 
 # DummyModel and dummy plot functions
 class DummyModel: pass

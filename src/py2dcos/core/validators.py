@@ -5,7 +5,7 @@ from py2dcos.config.resources import CalcMethod
 class UnsupportedMethodError(ValueError):
     pass
 
-# define error when input file extension isn’t one of the allowed types
+# define error when input file extension isn’t one of the allowed datatypes
 class UnsupportedExtensionError(ValueError):
     pass
 
@@ -21,7 +21,7 @@ def validate_method(method):
     raise UnsupportedMethodError(f"the method '{method}' is not yet supported.")
 
 def validate_extension(extension1, extension2=""):
-    # limit file types to plain text, csv, or excel for predictable parsing
+    # limit file datatypes to plain text, csv, or excel for predictable parsing
     available = {"txt", "csv", "xlsx"}
     if extension1 not in available:
         # catch unsupported primary extension early

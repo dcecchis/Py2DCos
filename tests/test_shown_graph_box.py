@@ -11,7 +11,7 @@ import pytest
 from PyQt5.QtCore import Qt
 from py2dcos.gui.widgets.shown_graph_box import ShownGraphBox
 from py2dcos.config.resources import ShownGraph, PeaksSigns
-from py2dcos.types import PlotSettings
+from py2dcos.datatypes import PlotSettings
 
 def make_snapshot(shown_graph, peaks):
     """Helper to create a dummy snapshot with the given plot settings."""

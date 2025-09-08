@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import QFileDialog, QMessageBox, QDialog, QPushButton
 
 from py2dcos.config.resources import CorrType
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types           import InputFile, ExcelParams
+from py2dcos.datatypes           import InputFile, ExcelParams
 from .excel_params_dialog import ExcelParamsDialog
 from .base_box import BaseBox
 

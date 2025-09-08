@@ -2,7 +2,7 @@
 import pytest
 from py2dcos.gui.widgets.data_treatment_box import DataTreatmentBox
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types import MathSettings
+from py2dcos.datatypes import MathSettings
 
 @pytest.fixture
 def data_box(qtbot):

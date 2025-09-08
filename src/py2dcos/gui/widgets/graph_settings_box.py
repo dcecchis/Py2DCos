@@ -7,7 +7,7 @@ from py2dcos.config.resources import (
     LOCATOR_CHOICES, CMAP_LIST, COLOR_LIST
 )
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types import PlotSettings
+from py2dcos.datatypes import PlotSettings
 from .base_box import BaseBox
 
 class GraphSettingsBox(BaseBox):

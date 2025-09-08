@@ -14,7 +14,7 @@ from py2dcos.plotting.backends.plot_async import plot_async2d
 from py2dcos.plotting.backends.plot_both import plot_both2d
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
 from py2dcos.config.resources import CorrType, ShownGraph
-from py2dcos.types import InputFile, MathSettings
+from py2dcos.datatypes import InputFile, MathSettings
 
 logger = logging.getLogger(__name__)
 

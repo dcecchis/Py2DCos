@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QLabel, QRadioButton, QGridLayout, QButtonGroup
 from PyQt5.QtCore    import Qt, pyqtSignal
 from py2dcos.config.resources import Diagonal, AxisDirection
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types             import PlotSettings
+from py2dcos.datatypes             import PlotSettings
 from .base_box import BaseBox
 
 class DiagonalsAxesBox(BaseBox):

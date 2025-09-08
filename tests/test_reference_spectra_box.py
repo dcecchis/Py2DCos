@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 from py2dcos.gui.widgets.reference_spectra_box import ReferenceSpectraBox
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
 from py2dcos.config.resources import RefSpectra
-from py2dcos.types import MathSettings
+from py2dcos.datatypes import MathSettings
 
 @pytest.fixture
 def ref_box(qtbot):

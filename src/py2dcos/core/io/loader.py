@@ -2,7 +2,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 
-from py2dcos.types import InputFile
+from py2dcos.datatypes import InputFile
 from py2dcos.core.validators import (
     validate_extension, UnsupportedExtensionError
 )

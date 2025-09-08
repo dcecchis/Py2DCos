@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass, replace
 from typing import Optional
-from py2dcos.types import InputFile, MathSettings, PlotSettings
+from py2dcos.datatypes import InputFile, MathSettings, PlotSettings
 from py2dcos.config.resources import CorrType
 
 @dataclass(frozen=True, slots=True)

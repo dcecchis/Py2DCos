@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 from py2dcos.core.io.loader import check_header, DataLoader
 from py2dcos.core.validators import UnsupportedExtensionError
-from py2dcos.types import InputFile
+from py2dcos.datatypes import InputFile
 
 # --- Tests for check_header ---
 

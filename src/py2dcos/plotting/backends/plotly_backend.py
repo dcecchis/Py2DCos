@@ -3,45 +3,53 @@ from typing import TYPE_CHECKING
 import plotly.graph_objs as go
 import matplotlib.cm as mplcm
 import matplotlib.colors as mcolors
-import plotly.colors as pc      # new
-from py2dcos.types.plot_settings import PlotSettings
+import numpy as np
+import plotly.colors as pc  # new
+from py2dcos.datatypes.plot_settings import PlotSettings
 from py2dcos.config.resources import ShownGraph
 
 if TYPE_CHECKING:
     from py2dcos.core.math.correlation_model import CorrelationModel
 
-def _to_plotly_scale(name: str, n: int = 256):
-    # convert a matplotlib colormap into a plotly-compatible scale
-    if name in pc.named_colorscales():
-        # use built-in plotly scale when available to avoid recomputing
-        return name
-    # generate rgba values from matplotlib and convert to hex for plotly
-    cmap = mplcm.get_cmap(name, n)
-    return [
-        [i / (n - 1), mcolors.rgb2hex(cmap(i)[:3])]
-        for i in range(cmap.N)
-    ]
+
+def _to_plotly_scale(cmap, n: int | None = None):
+    if isinstance(cmap, (list, tuple)):
+        return list(cmap)
+
+    if isinstance(cmap, str) and cmap in pc.named_colorscales() and n is None:
+        return cmap
+
+    steps = int(n) if n is not None else 256
+    m_cmap = mplcm.get_cmap(cmap, steps) if isinstance(cmap, str) else cmap
+
+    positions = np.linspace(0.0, 1.0, steps)
+    return [[float(pos), mcolors.to_hex(m_cmap(pos))] for pos in positions]
+
 
 def plot3d(
-        model: CorrelationModel, 
+        model: CorrelationModel,
         settings: PlotSettings,
         which: ShownGraph
         ):
-    # select synchronous or asynchronous data based on user toggle
     df = model.asyncr if which is ShownGraph.ASYNC else model.syncr
     title = "Asynchronous Spectra" if which is ShownGraph.ASYNC else "Synchronous Spectra"
 
-    # build a plotly figure with a surface trace using the correlation matrix
+    cmap = settings.color_map
+    n = getattr(settings, "n_colors", None)
+    if isinstance(cmap, str) and cmap in pc.named_colorscales() and n is None:
+        colorscale = cmap
+    else:
+        colorscale = _to_plotly_scale(cmap, n)
+
     fig = go.Figure(
         data=[go.Surface(
             x=df.index.values,
             y=df.columns.values,
             z=df.values,
-            colorscale=_to_plotly_scale(settings.color_map)
+            colorscale=colorscale  # <-- aquí va la variable, no la llamada directa
         )]
     )
 
-    # update layout to set titles and margins for an interactive display
     fig.update_layout(
         title=title,
         autosize=True,
@@ -52,6 +60,4 @@ def plot3d(
             zaxis_title="Correlation"
         ),
     )
-
-    # render the figure as html in the embedded webview for interactivity
     return fig

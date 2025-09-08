@@ -8,73 +8,78 @@ import plotly.graph_objs as go
 from py2dcos.plotting.backends.plotly_backend import _to_plotly_scale, plot3d
 from py2dcos.config.resources import ShownGraph
 
-# Dummy model with syncr and asyncr DataFrames
+
 class DummyModel:
     pass
 
+
 @pytest.fixture
 def model():
-    df = pd.DataFrame(
-        [[1, 2], [3, 4]],
-        index=[10, 20],
-        columns=[100, 200]
-    )
+    df = pd.DataFrame([[1, 2], [3, 4]], index=[10, 20], columns=[100, 200])
     m = DummyModel()
     m.syncr = df
     m.asyncr = df * 2
     return m
 
+
 class DummySettings:
     def __init__(self, cmap):
         self.color_map = cmap
 
-# Tests for the colormap conversion
 
 def test_to_plotly_scale_builtin():
-    # pick a built-in plotly named colorscale
     name = pc.named_colorscales()[0]
     out = _to_plotly_scale(name)
     assert isinstance(out, str)
     assert out == name
 
+
 @pytest.mark.parametrize("cmap,n", [("jet", 5), ("viridis", 7)])
 def test_to_plotly_scale_custom(cmap, n):
-    # custom matplotlib colormap converted to list of [pos, hex] pairs
     out = _to_plotly_scale(cmap, n=n)
     assert isinstance(out, list)
     assert len(out) == n
-    # positions range from 0 to 1
     positions = [entry[0] for entry in out]
     assert positions[0] == pytest.approx(0.0)
     assert positions[-1] == pytest.approx(1.0)
-    # hex color strings
     for _, hexcol in out:
-        assert isinstance(hexcol, str) and hexcol.startswith('#')
+        assert isinstance(hexcol, str) and hexcol.startswith("#")
 
-# Tests for plot3d function
+
+def _assert_colorscale(trace_colorscale, expected):
+    if isinstance(trace_colorscale, str):
+        assert trace_colorscale == expected
+        return
+
+    # normaliza y compara con tolerancia numérica en posiciones
+    got = [[float(a), str(b)] for (a, b) in trace_colorscale]
+    want = [[float(a), str(b)] for (a, b) in pc.get_colorscale(expected)]
+
+    assert len(got) == len(want)
+    for (pg, cg), (pw, cw) in zip(got, want):
+        assert pg == pytest.approx(pw, rel=0, abs=1e-12)
+        assert cg == cw
 
 def test_plot3d_sync(model):
-    settings = DummySettings(pc.named_colorscales()[0])
+    expected = pc.named_colorscales()[0]
+    settings = DummySettings(expected)
     fig = plot3d(model, settings, ShownGraph.SYNC)
     assert isinstance(fig, go.Figure)
-    # only one surface trace
     assert len(fig.data) == 1
     trace = fig.data[0]
-    # x, y, z match the DataFrame
     np.testing.assert_array_equal(trace.x, model.syncr.index.values)
     np.testing.assert_array_equal(trace.y, model.syncr.columns.values)
     np.testing.assert_array_equal(trace.z, model.syncr.values)
-    # layout title
-    assert fig.layout.title.text == 'Synchronous Spectra'
-    # colorscale uses the named scale
-    assert trace.colorscale == pc.named_colorscales()[0]
+    assert fig.layout.title.text == "Synchronous Spectra"
+    _assert_colorscale(trace.colorscale, expected)
+
 
 def test_plot3d_async(model):
-    settings = DummySettings(pc.named_colorscales()[0])
+    expected = pc.named_colorscales()[0]
+    settings = DummySettings(expected)
     fig = plot3d(model, settings, ShownGraph.ASYNC)
     assert isinstance(fig, go.Figure)
     trace = fig.data[0]
-    # asynchronous z is double the original
     np.testing.assert_array_equal(trace.z, model.asyncr.values)
-    assert fig.layout.title.text == 'Asynchronous Spectra'
-    assert trace.colorscale == pc.named_colorscales()[0]
+    assert fig.layout.title.text == "Asynchronous Spectra"
+    _assert_colorscale(trace.colorscale, expected)

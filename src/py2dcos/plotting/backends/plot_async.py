@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import RegularGridInterpolator
 from matplotlib.figure import Figure
 from py2dcos.plotting.backends.locator import define_locator
-from py2dcos.types.plot_settings import PlotSettings
+from py2dcos.datatypes.plot_settings import PlotSettings
 from py2dcos.config.resources import AxisDirection
 from py2dcos.config.resources import PeaksSigns
 from py2dcos.config.resources import Diagonal

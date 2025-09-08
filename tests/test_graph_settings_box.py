@@ -3,7 +3,7 @@ import pytest
 from PyQt5.QtCore import Qt
 from py2dcos.gui.widgets.graph_settings_box import GraphSettingsBox
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types import PlotSettings
+from py2dcos.datatypes import PlotSettings
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QDialog, QFileDialog
 from PyQt5.QtCore import Qt
 from py2dcos.gui.widgets.input_files_box import InputFilesBox
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types import InputFile, ExcelParams
+from py2dcos.datatypes import InputFile, ExcelParams
 from py2dcos.config.resources import CorrType
 
 # ---------------------------------------------------------------------------

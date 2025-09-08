@@ -9,7 +9,7 @@ from py2dcos.config.resources import PeaksSigns
 from py2dcos.config.resources import AxisDirection
 from py2dcos.config.resources import Diagonal
 from py2dcos.config.resources import CANVAS_BACKGROUND
-from py2dcos.types.plot_settings import PlotSettings
+from py2dcos.datatypes.plot_settings import PlotSettings
 
 if TYPE_CHECKING:
     from py2dcos.core.math.correlation_model import CorrelationModel

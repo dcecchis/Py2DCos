@@ -3,7 +3,7 @@ import pytest
 from py2dcos.gui.widgets.diagonals_axes_box import DiagonalsAxesBox
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
 from py2dcos.config.resources import Diagonal, AxisDirection
-from py2dcos.types import PlotSettings
+from py2dcos.datatypes import PlotSettings
 
 @pytest.fixture
 def diag_box(qtbot):

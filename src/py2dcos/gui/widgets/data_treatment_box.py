@@ -1,7 +1,7 @@
 from PyQt5.QtWidgets import QLabel, QComboBox, QSlider, QCheckBox, QGridLayout
 from PyQt5.QtCore    import Qt, pyqtSignal
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types import MathSettings
+from py2dcos.datatypes import MathSettings
 from py2dcos.config.resources import MIN_GAUSSIAN, MAX_GAUSSIAN
 import logging
 

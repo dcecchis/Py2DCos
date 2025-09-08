@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QRadioButton, QGridLayout
 from PyQt5.QtCore    import pyqtSignal, Qt
 from py2dcos.config.resources import RefSpectra
 from py2dcos.gui.state.gui_snapshot import GuiSnapshot
-from py2dcos.types             import MathSettings
+from py2dcos.datatypes             import MathSettings
 from .base_box import BaseBox
 
 class ReferenceSpectraBox(BaseBox):
