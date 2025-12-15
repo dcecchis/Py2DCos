@@ -11,7 +11,7 @@ authors = [
   {name="Dany de Cecchis", email="dany@espol.edu.ec"}  
 ]
 readme = "README.md"
-requires-python = ">=3.12.1"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 
 dependencies = [
@@ -20,8 +20,10 @@ dependencies = [
   "matplotlib",
   "pandas",
   "PyQt5",
+  "PyQtWebEngine",
   "plotly",
-  "openpyxl"
+  "openpyxl",
+  "scikit-learn"
 ]
 
 [project.urls]
