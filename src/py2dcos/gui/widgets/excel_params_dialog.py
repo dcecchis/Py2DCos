@@ -164,7 +164,7 @@ class ExcelParamsDialog(QDialog):
         special case: values chosen by user
         """
         if self.base_rb.isChecked():
-            return self.sheets[0], "", ""
+            return self.sheets[0], "", "", False
         return (
             self.controls["sheet"].currentText(),
             self.controls["row"].text().strip(),

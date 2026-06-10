@@ -3,13 +3,21 @@ import pandas as pd
 from py2dcos.core.validators import validate_special_case
 
 def read_excel(path, sheet, row, col_range, labelled) -> pd.DataFrame:
-    validate_special_case(col_range, row)
-    row_i = int(row) if str(row).strip() else 1
+    row = str(row).strip()
+    col_range = str(col_range).strip()
+
+    is_base_case = not row and not col_range and not labelled    
+    
+    if not is_base_case:
+        validate_special_case(col_range, row)
+    
+    row_i = int(row) if row else 1
     skip_rows = row_i - 1
+    usecols = col_range if col_range else None
 
     df = pd.read_excel(
         path, header=None, index_col=0, sheet_name=sheet,
-        usecols=col_range, skiprows=skip_rows
+        usecols=usecols, skiprows=skip_rows
     )
 
     if labelled:

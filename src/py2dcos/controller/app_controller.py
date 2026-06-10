@@ -115,20 +115,22 @@ class AppController(QObject):
 
     def _rebuild_model(self, snapshot: GuiSnapshot):
         self.busy.emit()
-        f1, f2 = snapshot.file1, snapshot.file2 or snapshot.file1
-        spec1 = DataLoader.load(f1)
-        spec2 = DataLoader.load(f2)
-        self._model = CorrelationModel(
-            spec1,
-            spec2,
-            ref = snapshot.math.ref,
-            method = snapshot.math.method,
-            reconstruction_comps=snapshot.math.reconstruction_comps,
-            sigma_gaussian=snapshot.math.sigma_gaussian,
-            node_attenuation=snapshot.math.node_attenuation
-        )
-        self._plot_cache.clear()
-        self.ready.emit()
+        try:
+            f1, f2 = snapshot.file1, snapshot.file2 or snapshot.file1
+            spec1 = DataLoader.load(f1)
+            spec2 = DataLoader.load(f2)
+            self._model = CorrelationModel(
+                spec1,
+                spec2,
+                ref = snapshot.math.ref,
+                method = snapshot.math.method,
+                reconstruction_comps=snapshot.math.reconstruction_comps,
+                sigma_gaussian=snapshot.math.sigma_gaussian,
+                node_attenuation=snapshot.math.node_attenuation
+            )
+            self._plot_cache.clear()
+        finally:
+            self.ready.emit()
 
     def _rebuild_plot(self, snapshot: GuiSnapshot):
         logger.info("Plotting")
