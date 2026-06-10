@@ -40,7 +40,7 @@ def test_base_case_accepts_and_returns_defaults(dialog, qtbot):
     assert dialog.result() == dialog.Accepted
     params = dialog.get_params()
     # Should be 3‑tuple of (first_sheet, '', '')
-    assert params == ("Sheet1", "", "")
+    assert params == ("Sheet1", "", "", False)
 
 
 def test_special_case_valid_inputs(dialog, qtbot):
