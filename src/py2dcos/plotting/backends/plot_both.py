@@ -48,9 +48,20 @@ def plot_both2d(
         sync = mask(sync)
         async_ = mask(async_)
 
-        # compute separate color scale limits for sync and async
-        smin, smax = np.nanmin(sync), np.nanmax(sync)
-        amin, amax = np.nanmin(async_), np.nanmax(async_)
+        # compute zero-centered color normalizations for correlation heatmaps
+        def zero_centered_norm(data: np.ndarray):
+            finite_data = data[np.isfinite(data)]
+            max_abs = np.nanmax(np.abs(finite_data)) if finite_data.size else 1.0
+            max_abs = max_abs if max_abs > 0 else 1.0
+
+            return mpl.colors.TwoSlopeNorm(
+                vmin=-max_abs,
+                vcenter=0.0,
+                vmax=max_abs,
+            )
+
+        sync_norm = zero_centered_norm(sync)
+        async_norm = zero_centered_norm(async_)
 
         # prepare interpolators for interactive coordinate readout
         fmt_s = RegularGridInterpolator((model.syncr.index, model.syncr.columns), model.syncr.values)
@@ -141,14 +152,13 @@ def plot_both2d(
         # draw heatmap and contour for synchronous map
         im_s = ax['sync'].imshow(
             sync[::-1, :], cmap=settings.color_map,
-            vmin=smin, vmax=smax,
+            norm=sync_norm,
             alpha=settings.color_map_intensity,
             aspect="auto",
             extent=(xi[0], xi[-1], yi[0], yi[-1]),
         )
         ax['sync'].contour(
             xi, yi, sync, locator=locator,
-            vmin=smin, vmax=smax,
             colors=settings.contour_line_color,
             alpha=settings.contour_line_alpha,
             linewidths=linewidth,
@@ -157,14 +167,13 @@ def plot_both2d(
         # draw heatmap and contour for asynchronous map
         im_a = ax['async_'].imshow(
             async_[::-1, :], cmap=settings.color_map,
-            vmin=amin, vmax=amax,
+            norm=async_norm,
             alpha=settings.color_map_intensity,
             aspect="auto",
             extent=(xi[0], xi[-1], yi[0], yi[-1]),
         )
         ax['async_'].contour(
             xi, yi, async_, locator=locator,
-            vmin=amin, vmax=amax,
             colors=settings.contour_line_color,
             alpha=settings.contour_line_alpha,
             linewidths=linewidth,

@@ -38,8 +38,16 @@ def plot_sync2d(
     elif settings.peaks is PeaksSigns.NEGATIVE:
         data = np.where(data < 0, data, np.nan)
 
-    # compute color scale limits from filtered data
-    zmin, zmax = np.nanmin(data), np.nanmax(data)
+    # compute a zero-centered color normalization for the heatmap
+    finite_data = data[np.isfinite(data)]
+    max_abs = np.nanmax(np.abs(finite_data)) if finite_data.size else 1.0
+    max_abs = max_abs if max_abs > 0 else 1.0
+
+    norm = mpl.colors.TwoSlopeNorm(
+        vmin=-max_abs,
+        vcenter=0.0,
+        vmax=max_abs
+    )
 
     # prepare interpolator for interactive coordinate display
     func = RegularGridInterpolator(
@@ -146,8 +154,7 @@ def plot_sync2d(
     panels['lower'].set_xlim(num_wave.min(), num_wave.max())
 
     imshow_kwargs = dict(
-        vmax=zmax,
-        vmin=zmin,
+        norm=norm,
         cmap=settings.color_map,
         extent=(num_wave[0], num_wave[-1], model.syncr.columns[0], model.syncr.columns[-1]),
         alpha=settings.color_map_intensity,
