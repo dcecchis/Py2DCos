@@ -39,7 +39,7 @@ def test_base_case_accepts_and_returns_defaults(dialog, qtbot):
     qtbot.waitUntil(lambda: dialog.result() == dialog.Accepted, timeout=500)
     assert dialog.result() == dialog.Accepted
     params = dialog.get_params()
-    # Should be 3‑tuple of (first_sheet, '', '')
+    # Should be 4‑tuple of (first_sheet, '', '', False)
     assert params == ("Sheet1", "", "", False)
 
 
